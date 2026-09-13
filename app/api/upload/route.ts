@@ -4,6 +4,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { extractTimetable } from "@/lib/timetableExtraction";
 
+// Vision extraction on a detailed table image can take a while; give it
+// more room than the platform default before the function is killed.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

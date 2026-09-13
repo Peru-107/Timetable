@@ -26,6 +26,40 @@ interface TimetableEntry {
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Vercel rejects request bodies over ~4.5MB outright, and full-resolution
+ * phone camera photos routinely exceed that. Downscale and re-encode as
+ * JPEG client-side before upload; PDFs are left as-is since they can't be
+ * resized this way.
+ */
+async function compressImageIfNeeded(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || file.size <= MAX_UPLOAD_BYTES) {
+    return file;
+  }
+
+  const bitmap = await createImageBitmap(file);
+  const maxDimension = 2200;
+  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const width = Math.round(bitmap.width * scale);
+  const height = Math.round(bitmap.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.drawImage(bitmap, 0, 0, width, height);
+
+  const blob: Blob | null = await new Promise((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", 0.85)
+  );
+  if (!blob) return file;
+
+  return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+}
+
 export default function TimetablePage() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -149,8 +183,8 @@ function TimetableContent() {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
 
     if (!subjectsInput.trim()) {
       setUploadResult({
@@ -161,31 +195,53 @@ function TimetableContent() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("semesterId", semesterId || "");
-    formData.append("subjects", subjectsInput);
+    if (!rawFile.type.startsWith("image/") && rawFile.size > MAX_UPLOAD_BYTES) {
+      setUploadResult({
+        type: "error",
+        message: "That PDF is too large to upload. Try a smaller file or a photo instead.",
+      });
+      e.target.value = "";
+      return;
+    }
 
     setIsUploading(true);
     setUploadResult(null);
 
     try {
+      const file = await compressImageIfNeeded(rawFile);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("semesterId", semesterId || "");
+      formData.append("subjects", subjectsInput);
+
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
 
-      if (res.ok) {
-        setUploadResult({ type: "success", message: data.message });
+      let data: { message?: string; error?: string } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Non-JSON response, e.g. a platform-level size/timeout error page
+      }
+
+      if (res.ok && data) {
+        setUploadResult({ type: "success", message: data.message || "Timetable updated" });
         fetchTimetable();
         fetchCourses();
       } else {
-        setUploadResult({ type: "error", message: data.error || "Could not process the file" });
+        setUploadResult({
+          type: "error",
+          message:
+            data?.error ||
+            "The upload failed, possibly because the file is too large or it took too long to process. Try a clearer, smaller photo.",
+        });
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-      setUploadResult({ type: "error", message: "Error uploading file" });
+      setUploadResult({ type: "error", message: "Network error while uploading. Please try again." });
     } finally {
       setIsUploading(false);
       e.target.value = "";
