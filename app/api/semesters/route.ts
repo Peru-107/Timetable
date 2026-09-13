@@ -36,13 +36,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, startDate, endDate } = await req.json();
+    const { name, startDate, endDate, weeks } = await req.json();
 
     const semester = await prisma.semester.create({
       data: {
         name,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
+        weeks: weeks != null ? Math.max(1, Math.round(weeks)) : undefined,
         userId: session.user.id,
       },
     });
@@ -64,7 +65,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, name, startDate, endDate } = await req.json();
+    const { id, name, startDate, endDate, weeks } = await req.json();
     if (!id) {
       return NextResponse.json({ error: "Semester ID required" }, { status: 400 });
     }
@@ -82,6 +83,7 @@ export async function PATCH(req: NextRequest) {
         name,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
+        weeks: weeks != null ? Math.max(1, Math.round(weeks)) : undefined,
       },
     });
 

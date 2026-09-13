@@ -32,6 +32,7 @@ model Semester {
   name          String     // e.g., "Fall 2024", "Spring 2025"
   startDate     DateTime
   endDate       DateTime
+  weeks         Int        @default(15) // Teaching weeks, used for attendance-hours math (not derived from dates)
   userId        String
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt     DateTime   @default(now())

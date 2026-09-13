@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { mergeAdjacentEntriesForCourse } from "@/lib/mergeAdjacentEntries";
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,7 +55,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(entry, { status: 201 });
+    // If this entry is back-to-back with another entry for the same course
+    // on the same day, collapse them into one continuous session - this
+    // row's id may not survive that (it can get merged into an earlier one).
+    const mergedCount = await mergeAdjacentEntriesForCourse(courseId);
+    const result = mergedCount > 0
+      ? (await prisma.timetableEntry.findUnique({ where: { id: entry.id } })) ??
+        (await prisma.timetableEntry.findFirst({ where: { courseId, dayOfWeek } }))
+      : entry;
+
+    return NextResponse.json(result ?? entry, { status: 201 });
   } catch (error) {
     console.error("Error creating timetable entry:", error);
     return NextResponse.json(
@@ -88,7 +98,15 @@ export async function PATCH(req: NextRequest) {
       data: { courseId, dayOfWeek, startTime, endTime, room, instructor },
     });
 
-    return NextResponse.json(updated);
+    const mergedCount = await mergeAdjacentEntriesForCourse(updated.courseId);
+    const result = mergedCount > 0
+      ? (await prisma.timetableEntry.findUnique({ where: { id: updated.id } })) ??
+        (await prisma.timetableEntry.findFirst({
+          where: { courseId: updated.courseId, dayOfWeek: updated.dayOfWeek },
+        }))
+      : updated;
+
+    return NextResponse.json(result ?? updated);
   } catch (error) {
     console.error("Error updating timetable entry:", error);
     return NextResponse.json(

@@ -8,12 +8,15 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { DailyAttendanceCard } from "@/components/DailyAttendanceCard";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import {
   ClipboardCheck,
   GraduationCap,
   BookMarked,
   Plus,
+  Pencil,
+  X,
 } from "lucide-react";
 import {
   BarChart,
@@ -34,6 +37,7 @@ interface Semester {
   name: string;
   startDate: string;
   endDate: string;
+  weeks: number;
   courses: Array<any>;
 }
 
@@ -64,6 +68,14 @@ export default function DashboardPage() {
   const [attendanceStats, setAttendanceStats] = useState<AttendanceStats | null>(null);
   const [cgpaData, setCGPAData] = useState<CGPAData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showEditSemester, setShowEditSemester] = useState(false);
+  const [editSemesterForm, setEditSemesterForm] = useState({
+    name: "",
+    startDate: "",
+    endDate: "",
+    weeks: 15,
+  });
+  const [isSavingSemester, setIsSavingSemester] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -116,8 +128,41 @@ export default function DashboardPage() {
 
   const handleSemesterChange = (semester: Semester) => {
     setActiveSemester(semester);
+    setShowEditSemester(false);
     fetchAttendanceStats(semester.id);
     fetchCGPA(semester.id);
+  };
+
+  const startEditSemester = () => {
+    if (!activeSemester) return;
+    setEditSemesterForm({
+      name: activeSemester.name,
+      startDate: activeSemester.startDate.split("T")[0],
+      endDate: activeSemester.endDate.split("T")[0],
+      weeks: activeSemester.weeks,
+    });
+    setShowEditSemester(true);
+  };
+
+  const handleSaveSemester = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeSemester) return;
+    setIsSavingSemester(true);
+    try {
+      const res = await fetch("/api/semesters", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeSemester.id, ...editSemesterForm }),
+      });
+      if (res.ok) {
+        setShowEditSemester(false);
+        await fetchSemesters();
+      }
+    } catch (error) {
+      console.error("Error updating semester:", error);
+    } finally {
+      setIsSavingSemester(false);
+    }
   };
 
   if (status === "loading" || isLoading) {
@@ -134,7 +179,7 @@ export default function DashboardPage() {
           <h2 className="mb-4 text-xl font-semibold text-foreground">
             Select Semester
           </h2>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {semesters.map((sem) => (
               <Button
                 key={sem.id}
@@ -150,7 +195,67 @@ export default function DashboardPage() {
                 New Semester
               </Button>
             </Link>
+            {activeSemester && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => (showEditSemester ? setShowEditSemester(false) : startEditSemester())}
+                aria-label="Edit semester"
+              >
+                {showEditSemester ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              </Button>
+            )}
           </div>
+
+          {showEditSemester && activeSemester && (
+            <form
+              onSubmit={handleSaveSemester}
+              className="frosted mt-4 flex flex-wrap items-end gap-3 rounded-2xl p-4"
+            >
+              <div className="min-w-[160px] flex-1">
+                <label className="mb-2 block text-sm font-medium text-foreground">Name</label>
+                <Input
+                  value={editSemesterForm.name}
+                  onChange={(e) => setEditSemesterForm({ ...editSemesterForm, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">Start Date</label>
+                <Input
+                  type="date"
+                  value={editSemesterForm.startDate}
+                  onChange={(e) => setEditSemesterForm({ ...editSemesterForm, startDate: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-foreground">End Date</label>
+                <Input
+                  type="date"
+                  value={editSemesterForm.endDate}
+                  onChange={(e) => setEditSemesterForm({ ...editSemesterForm, endDate: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="w-32">
+                <label className="mb-2 block text-sm font-medium text-foreground">Weeks</label>
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={editSemesterForm.weeks}
+                  onChange={(e) =>
+                    setEditSemesterForm({ ...editSemesterForm, weeks: parseInt(e.target.value) || 1 })
+                  }
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={isSavingSemester}>
+                {isSavingSemester ? "Saving..." : "Save"}
+              </Button>
+            </form>
+          )}
         </div>
 
         {semesters.length === 0 && <NoSemesterState />}

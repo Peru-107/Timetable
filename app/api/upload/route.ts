@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { extractTimetable } from "@/lib/timetableExtraction";
 import { planEntryMerge } from "@/lib/timetableMerge";
+import { mergeAdjacentEntriesForCourse } from "@/lib/mergeAdjacentEntries";
 
 // Vision extraction on a detailed table image can take a while, and a
 // fallback path (OCR + a second model call) can run after it; give this
@@ -127,10 +128,18 @@ export async function POST(req: NextRequest) {
         return `${attempted} vs ${existing} on ${DAY_NAMES[c.dayOfWeek]} ${c.startTime}-${c.endTime}`;
       });
 
+      // A subject scanned as separate back-to-back hourly cells (common on
+      // an hourly-grid timetable photo) should read as one continuous
+      // session, not one per hour - collapse those before computing credit
+      // hours from the final schedule.
+      const affectedCourseIds = Array.from(new Set(codeToCourseId.values()));
+      for (const courseId of affectedCourseIds) {
+        await mergeAdjacentEntriesForCourse(courseId);
+      }
+
       // Credit hours track weekly scheduled hours (1 hour/week = 1 credit),
       // so recompute them from each affected course's full timetable now
       // that this scan's classes are in.
-      const affectedCourseIds = Array.from(new Set(codeToCourseId.values()));
       for (const courseId of affectedCourseIds) {
         const courseEntries = await prisma.timetableEntry.findMany({
           where: { courseId },

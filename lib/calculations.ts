@@ -3,17 +3,6 @@ import { computeHoursFromTimes } from "./attendanceUtils";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/**
- * Weeks are derived from the semester's own start/end dates rather than a
- * fixed assumption, since a 10-week term and an 18-week term need very
- * different totals for the same weekly schedule.
- */
-function getWeeksInSemester(semester: { startDate: Date; endDate: Date }): number {
-  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-  const weeks = Math.round((semester.endDate.getTime() - semester.startDate.getTime()) / msPerWeek);
-  return Math.max(1, weeks);
-}
-
 interface AttendanceStats {
   totalHours: number;
   attendedHours: number;
@@ -29,7 +18,7 @@ export async function calculateAttendanceStats(
   semesterId: string
 ): Promise<AttendanceStats> {
   const semester = await prisma.semester.findUnique({ where: { id: semesterId } });
-  const weeksInSemester = semester ? getWeeksInSemester(semester) : 18;
+  const weeksInSemester = semester?.weeks ?? 15;
 
   // Get all timetable entries for the semester
   const timetableEntries = await prisma.timetableEntry.findMany({
@@ -111,7 +100,7 @@ export async function calculateAttendanceStatsByCourse(
 ): Promise<CourseAttendanceStat[]> {
   const semester = await prisma.semester.findUnique({ where: { id: semesterId } });
   if (!semester) return [];
-  const weeksInSemester = getWeeksInSemester(semester);
+  const weeksInSemester = semester.weeks;
 
   const courses = await prisma.course.findMany({
     where: { semesterId },

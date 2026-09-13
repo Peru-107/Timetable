@@ -15,6 +15,7 @@ export default function NewSemesterPage() {
     name: "",
     startDate: "",
     endDate: "",
+    weeks: 15,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -117,6 +118,26 @@ export default function NewSemesterPage() {
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-foreground">
+                Weeks in Semester
+              </label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={formData.weeks}
+                onChange={(e) =>
+                  setFormData({ ...formData, weeks: parseInt(e.target.value) || 1 })
+                }
+                required
+              />
+              <p className="mt-1 text-sm text-muted-foreground">
+                The number of teaching weeks, not calendar weeks - this drives your
+                attendance hour totals, so exclude breaks/holidays.
+              </p>
             </div>
 
             {error && (
