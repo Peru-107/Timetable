@@ -11,19 +11,11 @@ import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayClassChip";
 import { ScheduleClassChip } from "@/components/ScheduleClassChip";
+import { CoursePill } from "@/components/CoursePill";
 import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseScheduleRows";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes, startOfDay } from "@/lib/attendanceUtils";
-import {
-  Plus,
-  X,
-  Upload,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 interface TimetableEntry {
   id: string;
@@ -700,41 +692,14 @@ function TimetableContent() {
               {courses.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
                   {courses.map((course) => (
-                    <span
+                    <CoursePill
                       key={course.id}
-                      className={`frosted-inset flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium text-foreground ${
-                        editingCourseId === course.id ? "ring-2 ring-primary" : ""
-                      }`}
-                    >
-                      {course.name}
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {course.creditHours} cr
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          editingCourseId === course.id
-                            ? setEditingCourseId(null)
-                            : startEditCourse(course)
-                        }
-                        className="text-muted-foreground hover:text-foreground"
-                        aria-label="Edit course"
-                      >
-                        {editingCourseId === course.id ? (
-                          <X className="h-3 w-3" />
-                        ) : (
-                          <Pencil className="h-3 w-3" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCourse(course.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                        aria-label="Delete course"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </span>
+                      name={course.name}
+                      creditHours={course.creditHours}
+                      active={editingCourseId === course.id}
+                      onEdit={() => startEditCourse(course)}
+                      onDelete={() => handleDeleteCourse(course.id)}
+                    />
                   ))}
                 </div>
               )}

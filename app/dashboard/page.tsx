@@ -18,19 +18,6 @@ import {
   Pencil,
   X,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
 
 interface Semester {
   id: string;
@@ -287,6 +274,16 @@ export default function DashboardPage() {
                   >
                     {attendanceStats.attendancePercentage}%
                   </div>
+                  <div className="frosted-inset mb-4 h-2 overflow-hidden rounded-full">
+                    <div
+                      className={`h-full rounded-full ${
+                        attendanceStats.attendancePercentage >= 80 ? "bg-success" : "bg-destructive"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, attendanceStats.attendancePercentage)}%`,
+                      }}
+                    />
+                  </div>
                   <p className="mb-4 text-muted-foreground">
                     {attendanceStats.attendedHours}/{attendanceStats.totalHours} hours
                   </p>
@@ -335,75 +332,6 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-
-            {/* Charts Section */}
-            {attendanceStats && (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {/* Attendance Chart */}
-                <div className="frosted rounded-2xl p-6">
-                  <h3 className="mb-4 text-lg font-semibold text-foreground">
-                    Attendance Distribution
-                  </h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          {
-                            name: "Attended",
-                            value: attendanceStats.attendedHours,
-                          },
-                          {
-                            name: "Remaining",
-                            value: Math.max(
-                              0,
-                              attendanceStats.totalHours -
-                                attendanceStats.attendedHours
-                            ),
-                          },
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#4f6ef7"
-                        dataKey="value"
-                      >
-                        <Cell fill="#4f6ef7" />
-                        <Cell fill="#d6dce6" />
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Requirements Chart */}
-                <div className="frosted rounded-2xl p-6">
-                  <h3 className="mb-4 text-lg font-semibold text-foreground">
-                    Attendance vs Required
-                  </h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart
-                      data={[
-                        {
-                          name: "Hours",
-                          Attended: attendanceStats.attendedHours,
-                          Required: attendanceStats.requiredHours,
-                        },
-                      ]}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#d6dce6" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="Attended" fill="#4f6ef7" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="Required" fill="#e0564d" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>

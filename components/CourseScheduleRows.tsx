@@ -39,7 +39,22 @@ export function CourseScheduleRows({ rows, onChange }: CourseScheduleRowsProps) 
   };
 
   const addRow = () => {
-    onChange([...rows, { dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }]);
+    // Inherit room/instructor from the last row so a subject scanned with
+    // that detail (e.g. from an AI-read timetable) doesn't lose it on every
+    // additional day - only the day/time meaningfully differ session to
+    // session, and room/instructor stays editable via Edit Class if a
+    // specific day genuinely differs.
+    const last = rows[rows.length - 1];
+    onChange([
+      ...rows,
+      {
+        dayOfWeek: 1,
+        startTime: "09:00",
+        endTime: "10:00",
+        room: last?.room,
+        instructor: last?.instructor,
+      },
+    ]);
   };
 
   return (

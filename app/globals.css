@@ -147,6 +147,7 @@
 body {
   color: var(--foreground);
   background-color: var(--background);
+  font-weight: 500;
   background-image:
     radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 55%),
     radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--secondary) 15%, transparent), transparent 50%),

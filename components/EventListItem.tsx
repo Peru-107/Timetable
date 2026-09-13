@@ -50,7 +50,7 @@ export function EventListItem({
 
       <ChipMenuPortal
         open={menuOpen}
-        anchorEl={menuButtonRef.current}
+        anchorRef={menuButtonRef}
         items={menuItems}
         onClose={() => setMenuOpen(false)}
       />

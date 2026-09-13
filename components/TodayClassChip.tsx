@@ -124,7 +124,7 @@ export function TodayClassChip({
 
       <ChipMenuPortal
         open={menuOpen}
-        anchorEl={menuButtonRef.current}
+        anchorRef={menuButtonRef}
         items={menuItems}
         onClose={() => setMenuOpen(false)}
       />

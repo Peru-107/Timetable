@@ -12,7 +12,7 @@ export interface ChipMenuItem {
 
 interface ChipMenuPortalProps {
   open: boolean;
-  anchorEl: HTMLElement | null;
+  anchorRef: React.RefObject<HTMLElement | null>;
   items: ChipMenuItem[];
   onClose: () => void;
 }
@@ -33,7 +33,7 @@ const TONE_CLASS: Record<NonNullable<ChipMenuItem["tone"]>, string> = {
  * rect, sidesteps that entirely - it's a top-level fixed-position element,
  * not a descendant of any card.
  */
-export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPortalProps) {
+export function ChipMenuPortal({ open, anchorRef, items, onClose }: ChipMenuPortalProps) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -41,10 +41,11 @@ export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPorta
   // who opened the menu loses their place once it's gone.
   const close = () => {
     onClose();
-    anchorEl?.focus();
+    anchorRef.current?.focus();
   };
 
   useLayoutEffect(() => {
+    const anchorEl = anchorRef.current;
     if (!open || !anchorEl) return;
     const updatePosition = () => {
       const rect = anchorEl.getBoundingClientRect();
@@ -57,7 +58,7 @@ export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPorta
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [open, anchorEl]);
+  }, [open, anchorRef]);
 
   // The portal renders at the end of <body>, well outside the trigger's tab
   // order, so opening it must move focus in explicitly or a keyboard user
@@ -72,7 +73,7 @@ export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPorta
     if (!open) return;
     const handlePointerDown = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (anchorEl && anchorEl.contains(target)) return;
+      if (anchorRef.current && anchorRef.current.contains(target)) return;
       if (menuRef.current && menuRef.current.contains(target)) return;
       close();
     };
@@ -105,8 +106,7 @@ export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPorta
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, anchorEl]);
+  }, [open, anchorRef]);
 
   if (!open || !pos || typeof document === "undefined") return null;
 
