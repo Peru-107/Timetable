@@ -1,5 +1,14 @@
 import { GoogleGenAI } from "@google/genai";
 
+// Newest model first; fall back to an older, less contended Flash model if
+// the primary one is transiently overloaded (503 UNAVAILABLE / 429).
+const MODELS_IN_PRIORITY_ORDER = ["gemini-3.8-flash", "gemini-2.5-flash"];
+
+function isRetryableStatus(error: unknown): boolean {
+  const status = (error as { status?: number } | undefined)?.status;
+  return status === 503 || status === 429;
+}
+
 export interface TimetableExtraction {
   courses: Array<{ code: string; name: string }>;
   entries: Array<{
@@ -80,38 +89,62 @@ export async function extractTimetable(
   const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const base64Data = fileBuffer.toString("base64");
 
-  const response = await client.models.generateContent({
-    model: "gemini-3.8-flash",
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { inlineData: { mimeType, data: base64Data } },
-          {
-            text:
-              "This is my class timetable. My subjects are: " +
-              subjectCodes.join(", ") +
-              ". Extract every class session for exactly these subjects, across every day shown, with their day, " +
-              "start time, end time, room, and instructor where available. Leave room or instructor as an empty " +
-              "string if not shown.",
-          },
-        ],
-      },
-    ],
-    config: {
-      systemInstruction:
-        "You read university class timetable images or PDFs and extract a student's personal schedule from them. " +
-        "These timetables frequently list several parallel elective sections in the same day/time slot (e.g. two " +
-        "different subjects shown side by side in the same cell or column) because they cover an entire cohort, " +
-        "not one student. Only extract sessions for the specific subjects the student tells you they take - ignore " +
-        "every other subject shown on the sheet, even if it appears in the same time slot. Match subject codes " +
-        "loosely: ignore differences in spacing, case, and punctuation (e.g. 'IB3' matches 'IB 3'). If the sheet " +
-        "includes a legend or key mapping short codes to full subject names, use it to fill in full names; " +
-        "otherwise reuse the code as the name. Convert all times to 24-hour HH:MM format.",
-      responseMimeType: "application/json",
-      responseSchema: RESPONSE_SCHEMA,
+  const contents = [
+    {
+      role: "user",
+      parts: [
+        { inlineData: { mimeType, data: base64Data } },
+        {
+          text:
+            "This is my class timetable. My subjects are: " +
+            subjectCodes.join(", ") +
+            ". Extract every class session for exactly these subjects, across every day shown, with their day, " +
+            "start time, end time, room, and instructor where available. Leave room or instructor as an empty " +
+            "string if not shown.",
+        },
+      ],
     },
-  });
+  ];
+
+  const config = {
+    systemInstruction:
+      "You read university class timetable images or PDFs and extract a student's personal schedule from them. " +
+      "These timetables frequently list several parallel elective sections in the same day/time slot (e.g. two " +
+      "different subjects shown side by side in the same cell or column) because they cover an entire cohort, " +
+      "not one student. Only extract sessions for the specific subjects the student tells you they take - ignore " +
+      "every other subject shown on the sheet, even if it appears in the same time slot. Match subject codes " +
+      "loosely: ignore differences in spacing, case, and punctuation (e.g. 'IB3' matches 'IB 3'). If the sheet " +
+      "includes a legend or key mapping short codes to full subject names, use it to fill in full names; " +
+      "otherwise reuse the code as the name. Convert all times to 24-hour HH:MM format.",
+    responseMimeType: "application/json",
+    responseSchema: RESPONSE_SCHEMA,
+  };
+
+  let lastError: unknown;
+  let response: Awaited<ReturnType<typeof client.models.generateContent>> | undefined;
+
+  outer: for (const model of MODELS_IN_PRIORITY_ORDER) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        response = await client.models.generateContent({ model, contents, config });
+        break outer;
+      } catch (error) {
+        lastError = error;
+        if (!isRetryableStatus(error)) {
+          throw error;
+        }
+        if (attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+    }
+  }
+
+  if (!response) {
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("Gemini is temporarily unavailable. Please try again shortly.");
+  }
 
   const text = response.text;
   if (!text) {
