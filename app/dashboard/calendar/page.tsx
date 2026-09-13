@@ -227,6 +227,7 @@ function CalendarContent() {
                     <Button
                       variant="outline"
                       size="icon"
+                      aria-label="Previous month"
                       onClick={() =>
                         setCurrentDate(
                           new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
@@ -238,6 +239,7 @@ function CalendarContent() {
                     <Button
                       variant="outline"
                       size="icon"
+                      aria-label="Next month"
                       onClick={() =>
                         setCurrentDate(
                           new Date(currentDate.getFullYear(), currentDate.getMonth() + 1)
@@ -426,6 +428,7 @@ function CalendarContent() {
                         <Button
                           type="button"
                           variant="destructive"
+                          aria-label="Delete event"
                           onClick={() => handleDeleteEvent(editingEventId)}
                         >
                           <Trash2 className="h-4 w-4" />

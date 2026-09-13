@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export interface ChipMenuItem {
@@ -35,6 +35,14 @@ const TONE_CLASS: Record<NonNullable<ChipMenuItem["tone"]>, string> = {
  */
 export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPortalProps) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Closing must hand focus back to the trigger - otherwise a keyboard user
+  // who opened the menu loses their place once it's gone.
+  const close = () => {
+    onClose();
+    anchorEl?.focus();
+  };
 
   useLayoutEffect(() => {
     if (!open || !anchorEl) return;
@@ -51,15 +59,45 @@ export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPorta
     };
   }, [open, anchorEl]);
 
+  // The portal renders at the end of <body>, well outside the trigger's tab
+  // order, so opening it must move focus in explicitly or a keyboard user
+  // can never reach it at all.
+  useEffect(() => {
+    if (!open) return;
+    const firstItem = menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]');
+    firstItem?.focus();
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handlePointerDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (anchorEl && anchorEl.contains(target)) return;
-      onClose();
+      if (menuRef.current && menuRef.current.contains(target)) return;
+      close();
     };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        close();
+        return;
+      }
+      if (e.key !== "Tab" || !menuRef.current) return;
+      // Trap Tab within the menu so it can't escape into the rest of the
+      // page while open (the portal isn't adjacent to the trigger in DOM
+      // order, so default tab flow would jump somewhere unrelated).
+      const focusable = Array.from(
+        menuRef.current.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -67,12 +105,14 @@ export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPorta
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, anchorEl, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, anchorEl]);
 
   if (!open || !pos || typeof document === "undefined") return null;
 
   return createPortal(
     <div
+      ref={menuRef}
       role="menu"
       className="frosted fixed z-50 w-48 overflow-hidden rounded-xl p-1 shadow-lg"
       style={{ top: pos.top, left: pos.left }}
@@ -83,7 +123,7 @@ export function ChipMenuPortal({ open, anchorEl, items, onClose }: ChipMenuPorta
           type="button"
           role="menuitem"
           onClick={() => {
-            onClose();
+            close();
             item.onClick();
           }}
           className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium hover:bg-black/5 ${TONE_CLASS[item.tone || "default"]}`}
