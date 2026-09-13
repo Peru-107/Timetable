@@ -124,8 +124,19 @@ model Grade {
   semester   Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
   semesterId String
 
-  grade      Float // 0-4.0 scale
-  percentage Float? // Optional percentage grade
+  // Source marks - ICA/TEE max vary per course (e.g. a capstone with no
+  // TEE component), so they're stored per row rather than assumed 50/50.
+  icaMarks Float?
+  icaMax   Float  @default(50)
+  teeMarks Float?
+  teeMax   Float  @default(50)
+
+  // Derived from the marks above via lib/gradeScale.ts at write time -
+  // kept as columns (not recomputed on every read) so CGPA math and
+  // display never have to re-run the percentage-to-grade lookup.
+  letterGrade String?
+  grade       Float // grade point, 0-4.0 scale
+  percentage  Float? // final percentage (icaMarks+teeMarks)/(icaMax+teeMax)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

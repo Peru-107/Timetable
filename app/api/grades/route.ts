@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { calculateCGPA } from "@/lib/calculations";
+import { computeGradeFromMarks } from "@/lib/gradeScale";
 
 export async function GET(req: NextRequest) {
   try {
@@ -40,7 +41,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { courseId, grade, percentage, semesterId } = await req.json();
+    const { courseId, semesterId, icaMarks, icaMax, teeMarks, teeMax } = await req.json();
+
+    const resolvedIcaMax = icaMax ?? 50;
+    const resolvedTeeMax = teeMax ?? 50;
+    const { percentage, letterGrade, gradePoint } = computeGradeFromMarks(
+      icaMarks ?? 0,
+      resolvedIcaMax,
+      teeMarks ?? 0,
+      resolvedTeeMax
+    );
+
+    const data = {
+      icaMarks,
+      icaMax: resolvedIcaMax,
+      teeMarks,
+      teeMax: resolvedTeeMax,
+      percentage,
+      letterGrade,
+      grade: gradePoint,
+    };
 
     // Check if grade already exists
     const existingGrade = await prisma.grade.findUnique({
@@ -48,22 +68,19 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingGrade) {
-      // Update existing grade
       const updatedGrade = await prisma.grade.update({
         where: { courseId },
-        data: { grade, percentage },
+        data,
       });
       return NextResponse.json(updatedGrade);
     }
 
-    // Create new grade
     const newGrade = await prisma.grade.create({
       data: {
         userId: session.user.id,
         courseId,
-        grade,
-        percentage,
         semesterId,
+        ...data,
       },
     });
 
@@ -84,7 +101,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, grade, percentage } = await req.json();
+    const { id, icaMarks, icaMax, teeMarks, teeMax } = await req.json();
     if (!id) {
       return NextResponse.json({ error: "Grade ID required" }, { status: 400 });
     }
@@ -96,9 +113,28 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Grade not found" }, { status: 404 });
     }
 
+    const resolvedIcaMax = icaMax ?? existing.icaMax;
+    const resolvedTeeMax = teeMax ?? existing.teeMax;
+    const resolvedIcaMarks = icaMarks ?? existing.icaMarks ?? 0;
+    const resolvedTeeMarks = teeMarks ?? existing.teeMarks ?? 0;
+    const { percentage, letterGrade, gradePoint } = computeGradeFromMarks(
+      resolvedIcaMarks,
+      resolvedIcaMax,
+      resolvedTeeMarks,
+      resolvedTeeMax
+    );
+
     const updated = await prisma.grade.update({
       where: { id },
-      data: { grade, percentage },
+      data: {
+        icaMarks: resolvedIcaMarks,
+        icaMax: resolvedIcaMax,
+        teeMarks: resolvedTeeMarks,
+        teeMax: resolvedTeeMax,
+        percentage,
+        letterGrade,
+        grade: gradePoint,
+      },
     });
 
     return NextResponse.json(updated);

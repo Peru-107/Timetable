@@ -26,6 +26,11 @@ interface Grade {
   courseId: string;
   grade: number;
   percentage?: number;
+  letterGrade?: string;
+  icaMarks?: number;
+  icaMax: number;
+  teeMarks?: number;
+  teeMax: number;
   course: {
     name: string;
     creditHours: number;
@@ -62,11 +67,18 @@ function GradesContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [newGrade, setNewGrade] = useState({
     courseId: "",
-    grade: 3.5,
-    percentage: "",
+    icaMarks: "",
+    icaMax: "50",
+    teeMarks: "",
+    teeMax: "50",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editGrade, setEditGrade] = useState({ grade: 3.5, percentage: "" });
+  const [editGrade, setEditGrade] = useState({
+    icaMarks: "",
+    icaMax: "50",
+    teeMarks: "",
+    teeMax: "50",
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -113,17 +125,17 @@ function GradesContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...newGrade,
+          courseId: newGrade.courseId,
+          icaMarks: parseFloat(newGrade.icaMarks) || 0,
+          icaMax: parseFloat(newGrade.icaMax) || 50,
+          teeMarks: parseFloat(newGrade.teeMarks) || 0,
+          teeMax: parseFloat(newGrade.teeMax) || 50,
           semesterId,
         }),
       });
 
       if (res.ok) {
-        setNewGrade({
-          courseId: "",
-          grade: 3.5,
-          percentage: "",
-        });
+        setNewGrade({ courseId: "", icaMarks: "", icaMax: "50", teeMarks: "", teeMax: "50" });
         setShowForm(false);
         fetchGrades();
       }
@@ -135,8 +147,10 @@ function GradesContent() {
   const startEditGrade = (grade: Grade) => {
     setEditingId(grade.id);
     setEditGrade({
-      grade: grade.grade,
-      percentage: grade.percentage != null ? String(grade.percentage) : "",
+      icaMarks: grade.icaMarks != null ? String(grade.icaMarks) : "",
+      icaMax: String(grade.icaMax),
+      teeMarks: grade.teeMarks != null ? String(grade.teeMarks) : "",
+      teeMax: String(grade.teeMax),
     });
   };
 
@@ -147,8 +161,10 @@ function GradesContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id,
-          grade: editGrade.grade,
-          percentage: editGrade.percentage ? parseFloat(editGrade.percentage) : null,
+          icaMarks: parseFloat(editGrade.icaMarks) || 0,
+          icaMax: parseFloat(editGrade.icaMax) || 50,
+          teeMarks: parseFloat(editGrade.teeMarks) || 0,
+          teeMax: parseFloat(editGrade.teeMax) || 50,
         }),
       });
       if (res.ok) {
@@ -245,63 +261,77 @@ function GradesContent() {
                   Add Grade
                 </h2>
                 <form onSubmit={handleAddGrade} className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Course
-                      </label>
-                      <SelectNative
-                        value={newGrade.courseId}
-                        onChange={(e) =>
-                          setNewGrade({ ...newGrade, courseId: e.target.value })
-                        }
-                        required
-                      >
-                        <option value="">Select a course</option>
-                        {courses.map((course) => (
-                          <option key={course.id} value={course.id}>
-                            {course.name}
-                          </option>
-                        ))}
-                      </SelectNative>
-                    </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Course
+                    </label>
+                    <SelectNative
+                      value={newGrade.courseId}
+                      onChange={(e) => setNewGrade({ ...newGrade, courseId: e.target.value })}
+                      required
+                    >
+                      <option value="">Select a course</option>
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.name}
+                        </option>
+                      ))}
+                    </SelectNative>
+                  </div>
 
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                     <div>
                       <label className="mb-2 block text-sm font-medium text-foreground">
-                        GPA (0-4.0)
+                        ICA Marks
                       </label>
                       <Input
                         type="number"
                         min="0"
-                        max="4"
-                        step="0.1"
-                        value={newGrade.grade}
-                        onChange={(e) =>
-                          setNewGrade({
-                            ...newGrade,
-                            grade: parseFloat(e.target.value),
-                          })
-                        }
+                        value={newGrade.icaMarks}
+                        onChange={(e) => setNewGrade({ ...newGrade, icaMarks: e.target.value })}
+                        placeholder="0"
                         required
                       />
                     </div>
-
                     <div>
                       <label className="mb-2 block text-sm font-medium text-foreground">
-                        Percentage (Optional)
+                        ICA Max
                       </label>
                       <Input
                         type="number"
                         min="0"
-                        max="100"
-                        value={newGrade.percentage}
-                        onChange={(e) =>
-                          setNewGrade({ ...newGrade, percentage: e.target.value })
-                        }
-                        placeholder="e.g., 85"
+                        value={newGrade.icaMax}
+                        onChange={(e) => setNewGrade({ ...newGrade, icaMax: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        TEE Marks
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={newGrade.teeMarks}
+                        onChange={(e) => setNewGrade({ ...newGrade, teeMarks: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        TEE Max
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={newGrade.teeMax}
+                        onChange={(e) => setNewGrade({ ...newGrade, teeMax: e.target.value })}
                       />
                     </div>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Max marks default to 50/50 - change them if a course has a different split
+                    (e.g. an ICA-only capstone: set TEE Max to 0).
+                  </p>
 
                   <Button type="submit" className="w-full">
                     Add Grade
@@ -345,9 +375,11 @@ function GradesContent() {
                   <thead>
                     <tr className="text-left text-sm font-semibold text-muted-foreground">
                       <th className="px-6 py-3">Course</th>
-                      <th className="px-6 py-3">Credit Hours</th>
-                      <th className="px-6 py-3">GPA</th>
-                      <th className="px-6 py-3">Percentage</th>
+                      <th className="px-6 py-3">Credits</th>
+                      <th className="px-6 py-3">ICA</th>
+                      <th className="px-6 py-3">TEE</th>
+                      <th className="px-6 py-3">Total %</th>
+                      <th className="px-6 py-3">Grade</th>
                       <th className="px-6 py-3">Grade Points</th>
                       <th className="px-6 py-3">Actions</th>
                     </tr>
@@ -355,7 +387,7 @@ function GradesContent() {
                   <tbody>
                     {grades.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                        <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
                           No grades recorded yet
                         </td>
                       </tr>
@@ -370,32 +402,56 @@ function GradesContent() {
                               {g.course.creditHours}
                             </td>
                             <td className="px-6 py-4 text-sm">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="4"
-                                step="0.1"
-                                className="h-9 w-20"
-                                value={editGrade.grade}
-                                onChange={(e) =>
-                                  setEditGrade({ ...editGrade, grade: parseFloat(e.target.value) })
-                                }
-                              />
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  className="h-9 w-16"
+                                  value={editGrade.icaMarks}
+                                  onChange={(e) =>
+                                    setEditGrade({ ...editGrade, icaMarks: e.target.value })
+                                  }
+                                />
+                                <span className="text-muted-foreground">/</span>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  className="h-9 w-14"
+                                  value={editGrade.icaMax}
+                                  onChange={(e) =>
+                                    setEditGrade({ ...editGrade, icaMax: e.target.value })
+                                  }
+                                />
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-sm">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="100"
-                                className="h-9 w-20"
-                                value={editGrade.percentage}
-                                onChange={(e) =>
-                                  setEditGrade({ ...editGrade, percentage: e.target.value })
-                                }
-                              />
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  className="h-9 w-16"
+                                  value={editGrade.teeMarks}
+                                  onChange={(e) =>
+                                    setEditGrade({ ...editGrade, teeMarks: e.target.value })
+                                  }
+                                />
+                                <span className="text-muted-foreground">/</span>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  className="h-9 w-14"
+                                  value={editGrade.teeMax}
+                                  onChange={(e) =>
+                                    setEditGrade({ ...editGrade, teeMax: e.target.value })
+                                  }
+                                />
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground" colSpan={2}>
+                              Calculated on save
                             </td>
                             <td className="px-6 py-4 text-sm font-semibold text-foreground">
-                              {(editGrade.grade * g.course.creditHours).toFixed(2)}
+                              {(g.grade * g.course.creditHours).toFixed(2)}
                             </td>
                             <td className="px-6 py-4 text-sm">
                               <div className="flex items-center gap-2">
@@ -426,17 +482,23 @@ function GradesContent() {
                             <td className="px-6 py-4 text-sm text-foreground">
                               {g.course.creditHours}
                             </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {g.icaMarks ?? "-"}/{g.icaMax}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {g.teeMarks ?? "-"}/{g.teeMax}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {g.percentage != null ? `${g.percentage}%` : "-"}
+                            </td>
                             <td className="px-6 py-4 text-sm">
                               <span
                                 className={`frosted-inset rounded-full px-3 py-1 text-xs font-semibold ${getGradeColor(
                                   g.grade
                                 )}`}
                               >
-                                {g.grade.toFixed(2)}
+                                {g.letterGrade ?? g.grade.toFixed(2)}
                               </span>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-foreground">
-                              {g.percentage ?? "-"}
                             </td>
                             <td className="px-6 py-4 text-sm font-semibold text-foreground">
                               {(g.grade * g.course.creditHours).toFixed(2)}
