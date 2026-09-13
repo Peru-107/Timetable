@@ -321,6 +321,7 @@ function AttendanceContent() {
                       <Input
                         type="date"
                         value={newRecord.date}
+                        max={new Date().toISOString().split("T")[0]}
                         onChange={(e) =>
                           setNewRecord({ ...newRecord, date: e.target.value })
                         }

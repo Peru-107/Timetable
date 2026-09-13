@@ -67,6 +67,16 @@ export async function POST(req: NextRequest) {
     const dayEnd = new Date(targetDate);
     dayEnd.setHours(23, 59, 59, 999);
 
+    // Attendance can only be marked for today or earlier. A day of slack
+    // absorbs client/server timezone differences around "today" without
+    // letting someone mark attendance for next week.
+    if (dayStart.getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+      return NextResponse.json(
+        { error: "Cannot mark attendance for a future date" },
+        { status: 400 }
+      );
+    }
+
     // Marking the same class on the same day again updates the existing
     // record instead of creating a duplicate (this is how tap-to-mark on
     // the Timetable page behaves, and it makes re-submitting the manual

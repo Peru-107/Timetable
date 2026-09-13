@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
+import { DailyAttendanceCard } from "@/components/DailyAttendanceCard";
 import Link from "next/link";
 import {
   ClipboardCheck,
@@ -154,8 +155,13 @@ export default function DashboardPage() {
 
         {semesters.length === 0 && <NoSemesterState />}
 
-        {semesters.length > 0 && (
+        {semesters.length > 0 && activeSemester && (
           <>
+            <DailyAttendanceCard
+              semesterId={activeSemester.id}
+              onChange={() => fetchAttendanceStats(activeSemester.id)}
+            />
+
             {/* Statistics Grid */}
             <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
               {/* Attendance Card */}

@@ -129,6 +129,27 @@ export async function POST(req: NextRequest) {
         createdCount++;
       }
 
+      // Credit hours track weekly scheduled hours (1 hour/week = 1 credit),
+      // so recompute them from each affected course's full timetable now
+      // that this scan's classes are in.
+      const affectedCourseIds = Array.from(new Set(codeToCourseId.values()));
+      for (const courseId of affectedCourseIds) {
+        const courseEntries = await prisma.timetableEntry.findMany({
+          where: { courseId },
+        });
+        const totalMinutes = courseEntries.reduce((sum, e) => {
+          const [sh, sm] = e.startTime.split(":").map(Number);
+          const [eh, em] = e.endTime.split(":").map(Number);
+          const minutes = eh * 60 + em - (sh * 60 + sm);
+          return sum + (minutes > 0 ? minutes : 0);
+        }, 0);
+        const creditHours = Math.max(0.5, Math.round((totalMinutes / 60) * 2) / 2);
+        await prisma.course.update({
+          where: { id: courseId },
+          data: { creditHours },
+        });
+      }
+
       await prisma.timetableUpload.update({
         where: { id: upload.id },
         data: {

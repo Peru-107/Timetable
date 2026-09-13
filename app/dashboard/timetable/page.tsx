@@ -11,6 +11,7 @@ import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayClassChip";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
+import { computeHoursFromTimes, startOfDay } from "@/lib/attendanceUtils";
 import {
   Plus,
   X,
@@ -85,20 +86,6 @@ async function compressImageIfNeeded(file: File): Promise<File> {
   if (!blob) return file;
 
   return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
-}
-
-function computeHoursFromTimes(startTime: string, endTime: string): number {
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-  const minutes = eh * 60 + em - (sh * 60 + sm);
-  if (!Number.isFinite(minutes) || minutes <= 0) return 1;
-  return Math.round((minutes / 60) * 4) / 4;
-}
-
-function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 export default function TimetablePage() {
@@ -184,7 +171,7 @@ function TimetableContent() {
       const res = await fetch(`/api/attendance?semesterId=${semesterId}`);
       const data = await res.json();
       const records: AttendanceRecord[] = data.records || [];
-      const dayStart = startOfToday();
+      const dayStart = startOfDay(new Date());
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23, 59, 59, 999);
 
@@ -402,7 +389,7 @@ function TimetableContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: entry.courseId,
-          date: startOfToday().toISOString(),
+          date: startOfDay(new Date()).toISOString(),
           status: entryStatus,
           hoursDuration: computeHoursFromTimes(entry.startTime, entry.endTime),
         }),
@@ -543,6 +530,9 @@ function TimetableContent() {
                         className="frosted-inset flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium text-foreground"
                       >
                         {course.name}
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {course.creditHours} cr
+                        </span>
                         <button
                           type="button"
                           onClick={() => startEditCourse(course)}

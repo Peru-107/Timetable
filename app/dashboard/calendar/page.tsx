@@ -28,6 +28,19 @@ interface CalendarEvent {
   dueDate: string;
 }
 
+interface AttendanceRecord {
+  id: string;
+  date: string;
+  status: "PRESENT" | "ABSENT" | "CANCELLED";
+  course: { name: string };
+}
+
+const ATTENDANCE_DOT_COLOR: Record<AttendanceRecord["status"], string> = {
+  PRESENT: "bg-success",
+  ABSENT: "bg-destructive",
+  CANCELLED: "bg-muted-foreground",
+};
+
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const EVENT_COLORS: Record<string, string> = {
@@ -59,6 +72,7 @@ function CalendarContent() {
   const { semesterId, isResolvingSemester, hasNoSemesters } = useActiveSemester();
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,6 +88,7 @@ function CalendarContent() {
   useEffect(() => {
     if (semesterId) {
       fetchEvents();
+      fetchAttendance();
     } else if (!isResolvingSemester) {
       setIsLoading(false);
     }
@@ -88,6 +103,16 @@ function CalendarContent() {
       console.error("Error fetching events:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAttendance = async () => {
+    try {
+      const res = await fetch(`/api/attendance?semesterId=${semesterId}`);
+      const data = await res.json();
+      setAttendance(data.records || []);
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
     }
   };
 
@@ -149,6 +174,10 @@ function CalendarContent() {
 
   const getEventsForDate = (date: Date) => {
     return events.filter((event) => isSameDay(new Date(event.dueDate), date));
+  };
+
+  const getAttendanceForDate = (date: Date) => {
+    return attendance.filter((record) => isSameDay(new Date(record.date), date));
   };
 
   const getEventColor = (type: string) => EVENT_COLORS[type] || EVENT_COLORS.default;
@@ -239,6 +268,10 @@ function CalendarContent() {
 
                   {daysInMonth.map((day, index) => {
                     const dayEvents = getEventsForDate(day);
+                    const dayAttendance = getAttendanceForDate(day);
+                    const attendanceStatuses = Array.from(
+                      new Set(dayAttendance.map((r) => r.status))
+                    );
                     const isCurrentMonth = isSameMonth(day, currentDate);
 
                     return (
@@ -256,8 +289,25 @@ function CalendarContent() {
                           setShowForm(true);
                         }}
                       >
-                        <div className="mb-1 text-sm font-semibold text-foreground">
-                          {day.getDate()}
+                        <div className="mb-1 flex items-center justify-between gap-1">
+                          <span className="text-sm font-semibold text-foreground">
+                            {day.getDate()}
+                          </span>
+                          {attendanceStatuses.length > 0 && (
+                            <span
+                              className="flex items-center gap-0.5"
+                              title={dayAttendance
+                                .map((r) => `${r.course.name}: ${r.status.toLowerCase()}`)
+                                .join(", ")}
+                            >
+                              {attendanceStatuses.map((s) => (
+                                <span
+                                  key={s}
+                                  className={`h-1.5 w-1.5 rounded-full ${ATTENDANCE_DOT_COLOR[s]}`}
+                                />
+                              ))}
+                            </span>
+                          )}
                         </div>
                         <div className="space-y-1">
                           {dayEvents.slice(0, 2).map((event) => (
@@ -279,6 +329,18 @@ function CalendarContent() {
                       </div>
                     );
                   })}
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-success" /> Present
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-destructive" /> Absent
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" /> Cancelled
+                  </span>
                 </div>
               </div>
             </div>
