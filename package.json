@@ -1,0 +1,51 @@
+{
+  "name": "timetable-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "next": "16.3.5",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "@prisma/client": "^5.8.0",
+    "next-auth": "^4.24.7",
+    "@hookform/resolvers": "^3.3.4",
+    "react-hook-form": "^7.50.0",
+    "zod": "^3.22.4",
+    "tesseract.js": "^5.0.4",
+    "pdfjs-dist": "^4.0.379",
+    "date-fns": "^3.0.0",
+    "recharts": "^2.10.3",
+    "bcryptjs": "^2.4.3",
+    "lucide-react": "^0.292.0",
+    "clsx": "^2.0.0",
+    "next-themes": "^0.2.1",
+    "@radix-ui/react-dialog": "^1.1.1",
+    "@radix-ui/react-label": "^2.0.2",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-tabs": "^1.0.4",
+    "@radix-ui/react-alert-dialog": "^1.0.5",
+    "vercel": "^32.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/bcryptjs": "^2.4.6",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "prisma": "^5.8.0"
+  }
+}

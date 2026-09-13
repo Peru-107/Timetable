@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  name          String?
+  password      String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  semesters     Semester[]
+  grades        Grade[]
+  attendance    AttendanceRecord[]
+  calendarEvents CalendarEvent[]
+
+  @@map("users")
+}
+
+model Semester {
+  id            String     @id @default(cuid())
+  name          String     // e.g., "Fall 2024", "Spring 2025"
+  startDate     DateTime
+  endDate       DateTime
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  courses       Course[]
+  timetableEntries TimetableEntry[]
+  grades        Grade[]
+  calendarEvents CalendarEvent[]
+
+  @@map("semesters")
+}
+
+model Course {
+  id            String     @id @default(cuid())
+  name          String
+  code          String?
+  creditHours   Float      @default(3)
+  semester      Semester   @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semesterId    String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  timetableEntries TimetableEntry[]
+  attendance    AttendanceRecord[]
+  grade         Grade?
+
+  @@map("courses")
+}
+
+model TimetableEntry {
+  id            String     @id @default(cuid())
+  course        Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId      String
+  semester      Semester   @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semesterId    String
+
+  dayOfWeek     Int        // 0-6 (Sunday-Saturday)
+  startTime     String     // HH:MM format
+  endTime       String     // HH:MM format
+  room          String?
+  instructor    String?
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@map("timetable_entries")
+}
+
+model AttendanceRecord {
+  id            String     @id @default(cuid())
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  course        Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId      String
+
+  date          DateTime   // Date of the class
+  isPresent     Boolean    @default(false)
+  hoursDuration Float      @default(1)
+  notes         String?
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@map("attendance_records")
+}
+
+model Grade {
+  id            String     @id @default(cuid())
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  course        Course     @relation(fields: [courseId], references: [id])
+  courseId      String     @unique
+  semester      Semester   @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semesterId    String
+
+  grade         Float      // 0-4.0 scale
+  percentage    Float?     // Optional percentage grade
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@map("grades")
+}
+
+model CalendarEvent {
+  id            String     @id @default(cuid())
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  semester      Semester   @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semesterId    String
+
+  title         String
+  description   String?
+  eventType     String     // "exam", "assignment", "deadline", "holiday"
+  dueDate       DateTime
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@map("calendar_events")
+}
+
+model TimetableUpload {
+  id            String     @id @default(cuid())
+  semesterId    String
+  uploadUrl     String
+  fileType      String     // "pdf", "jpg", "png"
+  extractedText String?    // OCR result
+  status        String     @default("pending") // pending, processing, completed, failed
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@map("timetable_uploads")
+}
