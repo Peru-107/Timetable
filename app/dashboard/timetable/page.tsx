@@ -2,10 +2,15 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
+import { SelectNative } from "@/components/ui/select-native";
+import { DashboardNav } from "@/components/DashboardNav";
+import { PageLoader } from "@/components/PageLoader";
+import { NoSemesterState } from "@/components/NoSemesterState";
+import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
+import { Plus, X, Upload } from "lucide-react";
 
 interface TimetableEntry {
   id: string;
@@ -23,13 +28,7 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 
 export default function TimetablePage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-lg">Loading...</div>
-        </div>
-      }
-    >
+    <Suspense fallback={<PageLoader />}>
       <TimetableContent />
     </Suspense>
   );
@@ -38,8 +37,7 @@ export default function TimetablePage() {
 function TimetableContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const semesterId = searchParams.get("semesterId");
+  const { semesterId, isResolvingSemester, hasNoSemesters } = useActiveSemester();
 
   const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
   const [newEntry, setNewEntry] = useState({
@@ -53,7 +51,6 @@ function TimetableContent() {
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -65,8 +62,10 @@ function TimetableContent() {
     if (semesterId) {
       fetchTimetable();
       fetchCourses();
+    } else if (!isResolvingSemester) {
+      setIsLoading(false);
     }
-  }, [semesterId]);
+  }, [semesterId, isResolvingSemester]);
 
   const fetchTimetable = async () => {
     try {
@@ -140,197 +139,201 @@ function TimetableContent() {
     }
   };
 
-  // Group entries by day
   const entriesByDay = DAYS.map((day, dayIndex) =>
     timetableEntries.filter((entry) => entry.dayOfWeek === dayIndex)
   );
 
-  if (status === "loading" || isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+  if (status === "loading" || isLoading || isResolvingSemester) {
+    return <PageLoader />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="space-x-4">
-            <Link href="/dashboard">
-              <Button variant="ghost">← Dashboard</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background pb-12">
+      <DashboardNav semesterId={semesterId} />
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Timetable</h1>
-          <div className="space-x-4">
-            <Button onClick={() => setShowForm(!showForm)}>
-              {showForm ? "Cancel" : "+ Add Class"}
-            </Button>
-            <label>
-              <Button variant="outline" asChild>
-                <span>📁 Upload (PDF/JPG/PNG)</span>
-              </Button>
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileUpload}
-                style={{ display: "none" }}
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* Form to Add Entry */}
-        {showForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">Add Class</h2>
-            <form onSubmit={handleAddEntry} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Course
-                  </label>
-                  <select
-                    value={newEntry.courseId}
-                    onChange={(e) =>
-                      setNewEntry({ ...newEntry, courseId: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    required
-                  >
-                    <option value="">Select a course</option>
-                    {courses.map((course: any) => (
-                      <option key={course.id} value={course.id}>
-                        {course.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Day
-                  </label>
-                  <select
-                    value={newEntry.dayOfWeek}
-                    onChange={(e) =>
-                      setNewEntry({ ...newEntry, dayOfWeek: parseInt(e.target.value) })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    {DAYS.map((day, index) => (
-                      <option key={index} value={index}>
-                        {day}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Start Time
-                  </label>
-                  <Input
-                    type="time"
-                    value={newEntry.startTime}
-                    onChange={(e) =>
-                      setNewEntry({ ...newEntry, startTime: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    End Time
-                  </label>
-                  <Input
-                    type="time"
-                    value={newEntry.endTime}
-                    onChange={(e) =>
-                      setNewEntry({ ...newEntry, endTime: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Room (Optional)
-                  </label>
-                  <Input
-                    value={newEntry.room}
-                    onChange={(e) =>
-                      setNewEntry({ ...newEntry, room: e.target.value })
-                    }
-                    placeholder="e.g., A101"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Instructor (Optional)
-                  </label>
-                  <Input
-                    value={newEntry.instructor}
-                    onChange={(e) =>
-                      setNewEntry({ ...newEntry, instructor: e.target.value })
-                    }
-                    placeholder="e.g., Dr. Smith"
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full">
-                Add to Timetable
-              </Button>
-            </form>
-          </div>
-        )}
-
-        {/* Timetable Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
-          {DAYS.map((day, dayIndex) => (
-            <div key={dayIndex} className="bg-white rounded-lg shadow p-4">
-              <h3 className="font-semibold text-gray-800 mb-4 text-center">
-                {day}
-              </h3>
-              <div className="space-y-2">
-                {entriesByDay[dayIndex].length === 0 ? (
-                  <p className="text-gray-400 text-sm text-center">No classes</p>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold text-foreground">Timetable</h1>
+          {semesterId && (
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => setShowForm(!showForm)}>
+                {showForm ? (
+                  <>
+                    <X className="h-4 w-4" /> Cancel
+                  </>
                 ) : (
-                  entriesByDay[dayIndex].map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded"
-                    >
-                      <p className="font-semibold text-sm text-gray-800">
-                        {entry.course.name}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        {entry.startTime} - {entry.endTime}
-                      </p>
-                      {entry.room && (
-                        <p className="text-xs text-gray-500">Room: {entry.room}</p>
-                      )}
-                      {entry.instructor && (
-                        <p className="text-xs text-gray-500">
-                          {entry.instructor}
-                        </p>
-                      )}
-                    </div>
-                  ))
+                  <>
+                    <Plus className="h-4 w-4" /> Add Class
+                  </>
                 )}
-              </div>
+              </Button>
+              <label>
+                <Button variant="outline" asChild>
+                  <span>
+                    <Upload className="h-4 w-4" /> Upload (PDF/JPG/PNG)
+                  </span>
+                </Button>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleFileUpload}
+                  style={{ display: "none" }}
+                />
+              </label>
             </div>
-          ))}
+          )}
         </div>
+
+        {hasNoSemesters ? (
+          <NoSemesterState />
+        ) : (
+          <>
+            {/* Form to Add Entry */}
+            {showForm && (
+              <div className="neu-raised mb-8 rounded-2xl p-6">
+                <h2 className="mb-4 text-xl font-semibold text-foreground">
+                  Add Class
+                </h2>
+                <form onSubmit={handleAddEntry} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Course
+                      </label>
+                      <SelectNative
+                        value={newEntry.courseId}
+                        onChange={(e) =>
+                          setNewEntry({ ...newEntry, courseId: e.target.value })
+                        }
+                        required
+                      >
+                        <option value="">Select a course</option>
+                        {courses.map((course: any) => (
+                          <option key={course.id} value={course.id}>
+                            {course.name}
+                          </option>
+                        ))}
+                      </SelectNative>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Day
+                      </label>
+                      <SelectNative
+                        value={newEntry.dayOfWeek}
+                        onChange={(e) =>
+                          setNewEntry({ ...newEntry, dayOfWeek: parseInt(e.target.value) })
+                        }
+                      >
+                        {DAYS.map((day, index) => (
+                          <option key={index} value={index}>
+                            {day}
+                          </option>
+                        ))}
+                      </SelectNative>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Start Time
+                      </label>
+                      <Input
+                        type="time"
+                        value={newEntry.startTime}
+                        onChange={(e) =>
+                          setNewEntry({ ...newEntry, startTime: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        End Time
+                      </label>
+                      <Input
+                        type="time"
+                        value={newEntry.endTime}
+                        onChange={(e) =>
+                          setNewEntry({ ...newEntry, endTime: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Room (Optional)
+                      </label>
+                      <Input
+                        value={newEntry.room}
+                        onChange={(e) =>
+                          setNewEntry({ ...newEntry, room: e.target.value })
+                        }
+                        placeholder="e.g., A101"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Instructor (Optional)
+                      </label>
+                      <Input
+                        value={newEntry.instructor}
+                        onChange={(e) =>
+                          setNewEntry({ ...newEntry, instructor: e.target.value })
+                        }
+                        placeholder="e.g., Dr. Smith"
+                      />
+                    </div>
+                  </div>
+
+                  <Button type="submit" className="w-full">
+                    Add to Timetable
+                  </Button>
+                </form>
+              </div>
+            )}
+
+            {/* Timetable Grid */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-7">
+              {DAYS.map((day, dayIndex) => (
+                <div key={dayIndex} className="neu-raised rounded-2xl p-4">
+                  <h3 className="mb-4 text-center font-semibold text-foreground">
+                    {day}
+                  </h3>
+                  <div className="space-y-2">
+                    {entriesByDay[dayIndex].length === 0 ? (
+                      <p className="text-center text-sm text-muted-foreground">
+                        No classes
+                      </p>
+                    ) : (
+                      entriesByDay[dayIndex].map((entry) => (
+                        <div key={entry.id} className="neu-inset rounded-xl p-3">
+                          <p className="text-sm font-semibold text-foreground">
+                            {entry.course.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {entry.startTime} - {entry.endTime}
+                          </p>
+                          {entry.room && (
+                            <p className="text-xs text-muted-foreground">
+                              Room: {entry.room}
+                            </p>
+                          )}
+                          {entry.instructor && (
+                            <p className="text-xs text-muted-foreground">
+                              {entry.instructor}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

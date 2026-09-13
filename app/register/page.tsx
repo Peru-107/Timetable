@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { UserPlus, AlertCircle } from "lucide-react";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -53,15 +54,18 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
-          Create Account
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+      <div className="neu-raised w-full max-w-md rounded-2xl p-8">
+        <div className="neu-inset mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl">
+          <UserPlus className="h-7 w-7 text-primary" />
+        </div>
+        <h1 className="mb-6 text-center text-2xl font-bold text-foreground">
+          Create your account
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-foreground">
               Full Name
             </label>
             <Input
@@ -74,7 +78,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-foreground">
               Email
             </label>
             <Input
@@ -87,7 +91,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-foreground">
               Password
             </label>
             <Input
@@ -100,7 +104,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-foreground">
               Confirm Password
             </label>
             <Input
@@ -113,23 +117,20 @@ export default function RegisterPage() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="neu-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full"
-          >
+          <Button type="submit" disabled={isLoading} className="w-full">
             {isLoading ? "Creating account..." : "Register"}
           </Button>
         </form>
 
-        <p className="text-center mt-4 text-gray-600">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="text-blue-600 hover:underline font-medium">
+          <Link href="/login" className="font-medium text-primary hover:underline">
             Login here
           </Link>
         </p>

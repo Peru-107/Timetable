@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { GraduationCap, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -39,15 +40,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
-          Timetable Tracker
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="neu-raised w-full max-w-md rounded-2xl p-8">
+        <div className="neu-inset mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl">
+          <GraduationCap className="h-7 w-7 text-primary" />
+        </div>
+        <h1 className="mb-6 text-center text-2xl font-bold text-foreground">
+          Welcome back
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-foreground">
               Email
             </label>
             <Input
@@ -60,7 +64,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-sm font-medium text-foreground">
               Password
             </label>
             <Input
@@ -73,23 +77,20 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="neu-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full"
-          >
+          <Button type="submit" disabled={isLoading} className="w-full">
             {isLoading ? "Logging in..." : "Login"}
           </Button>
         </form>
 
-        <p className="text-center mt-4 text-gray-600">
-          Don't have an account?{" "}
-          <Link href="/register" className="text-blue-600 hover:underline font-medium">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-medium text-primary hover:underline">
             Register here
           </Link>
         </p>

@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { ArrowLeft, CalendarRange, AlertCircle } from "lucide-react";
 
 export default function NewSemesterPage() {
   const router = useRouter();
@@ -51,47 +52,46 @@ export default function NewSemesterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="space-x-4">
-            <Link href="/dashboard">
-              <Button variant="ghost">← Back</Button>
-            </Link>
-          </div>
+    <div className="min-h-screen bg-background pb-12">
+      <nav className="mx-4 mb-8 mt-4 sm:mx-6 lg:mx-8">
+        <div className="neu-raised mx-auto flex max-w-7xl items-center rounded-2xl px-6 py-4">
+          <Link href="/dashboard">
+            <Button variant="ghost">
+              <ArrowLeft className="h-4 w-4" /> Back
+            </Button>
+          </Link>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow p-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-8">
+      <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
+        <div className="neu-raised rounded-2xl p-8">
+          <div className="neu-inset mb-6 flex h-14 w-14 items-center justify-center rounded-2xl">
+            <CalendarRange className="h-7 w-7 text-primary" />
+          </div>
+          <h1 className="mb-8 text-3xl font-bold text-foreground">
             Create New Semester
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-foreground">
                 Semester Name
               </label>
               <Input
                 type="text"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., Fall 2024, Spring 2025"
                 required
               />
-              <p className="text-sm text-gray-500 mt-1">
-                Use a descriptive name like "Fall 2024" or "Semester 5"
+              <p className="mt-1 text-sm text-muted-foreground">
+                Use a descriptive name like &quot;Fall 2024&quot; or &quot;Semester 5&quot;
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-foreground">
                   Start Date
                 </label>
                 <Input
@@ -105,7 +105,7 @@ export default function NewSemesterPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-medium text-foreground">
                   End Date
                 </label>
                 <Input
@@ -120,26 +120,28 @@ export default function NewSemesterPage() {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              <div className="neu-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
             )}
 
-            <Button type="submit" disabled={isLoading} className="w-full text-lg py-6">
+            <Button type="submit" disabled={isLoading} size="lg" className="w-full">
               {isLoading ? "Creating..." : "Create Semester"}
             </Button>
           </form>
 
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Next Steps:</strong> After creating a semester, you'll be able to:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Add courses to the semester</li>
-                <li>Create your timetable</li>
-                <li>Track attendance and grades</li>
-                <li>Set important deadlines and exams</li>
-              </ul>
+          <div className="neu-inset mt-8 rounded-2xl p-4">
+            <p className="mb-2 text-sm font-semibold text-foreground">Next Steps</p>
+            <p className="text-sm text-muted-foreground">
+              After creating a semester, you&apos;ll be able to:
             </p>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
+              <li>Add courses to the semester</li>
+              <li>Create your timetable</li>
+              <li>Track attendance and grades</li>
+              <li>Set important deadlines and exams</li>
+            </ul>
           </div>
         </div>
       </div>

@@ -4,7 +4,16 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { DashboardNav } from "@/components/DashboardNav";
+import { PageLoader } from "@/components/PageLoader";
+import { NoSemesterState } from "@/components/NoSemesterState";
 import Link from "next/link";
+import {
+  ClipboardCheck,
+  GraduationCap,
+  BookMarked,
+  Plus,
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -111,45 +120,20 @@ export default function DashboardPage() {
   };
 
   if (status === "loading" || isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">Timetable Tracker</h1>
-          <div className="space-x-4">
-            <Link href="/dashboard/timetable">
-              <Button variant="outline">Timetable</Button>
-            </Link>
-            <Link href="/dashboard/attendance">
-              <Button variant="outline">Attendance</Button>
-            </Link>
-            <Link href="/dashboard/grades">
-              <Button variant="outline">Grades</Button>
-            </Link>
-            <Link href="/dashboard/calendar">
-              <Button variant="outline">Calendar</Button>
-            </Link>
-            <Link href="/api/auth/signout">
-              <Button variant="destructive">Logout</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background pb-12">
+      <DashboardNav semesterId={activeSemester?.id} />
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Semester Selection */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Select Semester</h2>
-          <div className="flex gap-4 flex-wrap">
+          <h2 className="mb-4 text-xl font-semibold text-foreground">
+            Select Semester
+          </h2>
+          <div className="flex flex-wrap gap-3">
             {semesters.map((sem) => (
               <Button
                 key={sem.id}
@@ -160,132 +144,152 @@ export default function DashboardPage() {
               </Button>
             ))}
             <Link href="/dashboard/semesters/new">
-              <Button variant="outline">+ New Semester</Button>
+              <Button variant="secondary">
+                <Plus className="h-4 w-4" />
+                New Semester
+              </Button>
             </Link>
           </div>
         </div>
 
-        {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {/* Attendance Card */}
-          {attendanceStats && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Attendance
-              </h3>
-              <div className="text-4xl font-bold text-blue-600 mb-2">
-                {attendanceStats.attendancePercentage}%
+        {semesters.length === 0 && <NoSemesterState />}
+
+        {semesters.length > 0 && (
+          <>
+            {/* Statistics Grid */}
+            <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+              {/* Attendance Card */}
+              {attendanceStats && (
+                <div className="neu-raised rounded-2xl p-6">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="neu-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                      <ClipboardCheck className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Attendance
+                    </h3>
+                  </div>
+                  <div className="mb-2 text-4xl font-bold text-primary">
+                    {attendanceStats.attendancePercentage}%
+                  </div>
+                  <p className="mb-4 text-muted-foreground">
+                    {attendanceStats.attendedHours}/{attendanceStats.totalHours} hours
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Leaves Available: {attendanceStats.leavesAvailable}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Required: 80% ({attendanceStats.requiredHours} hours)
+                  </p>
+                </div>
+              )}
+
+              {/* CGPA Card */}
+              {cgpaData && (
+                <div className="neu-raised rounded-2xl p-6">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="neu-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                      <GraduationCap className="h-5 w-5 text-success" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground">CGPA</h3>
+                  </div>
+                  <div className="mb-2 text-4xl font-bold text-success">
+                    {cgpaData.cgpa}/4.0
+                  </div>
+                  <p className="text-muted-foreground">
+                    {cgpaData.courses.length} courses
+                  </p>
+                </div>
+              )}
+
+              {/* Courses Card */}
+              {activeSemester && (
+                <div className="neu-raised rounded-2xl p-6">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="neu-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                      <BookMarked className="h-5 w-5 text-warning" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground">Courses</h3>
+                  </div>
+                  <div className="mb-2 text-4xl font-bold text-warning">
+                    {activeSemester.courses.length}
+                  </div>
+                  <p className="text-muted-foreground">
+                    Active courses this semester
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Charts Section */}
+            {attendanceStats && (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {/* Attendance Chart */}
+                <div className="neu-raised rounded-2xl p-6">
+                  <h3 className="mb-4 text-lg font-semibold text-foreground">
+                    Attendance Distribution
+                  </h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          {
+                            name: "Attended",
+                            value: attendanceStats.attendedHours,
+                          },
+                          {
+                            name: "Remaining",
+                            value: Math.max(
+                              0,
+                              attendanceStats.totalHours -
+                                attendanceStats.attendedHours
+                            ),
+                          },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#4f6ef7"
+                        dataKey="value"
+                      >
+                        <Cell fill="#4f6ef7" />
+                        <Cell fill="#d6dce6" />
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Requirements Chart */}
+                <div className="neu-raised rounded-2xl p-6">
+                  <h3 className="mb-4 text-lg font-semibold text-foreground">
+                    Attendance vs Required
+                  </h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={[
+                        {
+                          name: "Hours",
+                          Attended: attendanceStats.attendedHours,
+                          Required: attendanceStats.requiredHours,
+                        },
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#d6dce6" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Attended" fill="#4f6ef7" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="Required" fill="#e0564d" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <p className="text-gray-600 mb-4">
-                {attendanceStats.attendedHours}/{attendanceStats.totalHours} hours
-              </p>
-              <p className="text-sm text-gray-500">
-                Leaves Available: {attendanceStats.leavesAvailable}
-              </p>
-              <p className="text-sm text-gray-500">
-                Required: 80% ({attendanceStats.requiredHours} hours)
-              </p>
-            </div>
-          )}
-
-          {/* CGPA Card */}
-          {cgpaData && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                CGPA
-              </h3>
-              <div className="text-4xl font-bold text-green-600 mb-2">
-                {cgpaData.cgpa}/4.0
-              </div>
-              <p className="text-gray-600 mb-4">
-                {cgpaData.courses.length} courses
-              </p>
-            </div>
-          )}
-
-          {/* Courses Card */}
-          {activeSemester && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Courses
-              </h3>
-              <div className="text-4xl font-bold text-purple-600 mb-2">
-                {activeSemester.courses.length}
-              </div>
-              <p className="text-gray-600">Active courses this semester</p>
-            </div>
-          )}
-        </div>
-
-        {/* Charts Section */}
-        {attendanceStats && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Attendance Chart */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Attendance Distribution
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      {
-                        name: "Attended",
-                        value: attendanceStats.attendedHours,
-                      },
-                      {
-                        name: "Remaining",
-                        value: Math.max(
-                          0,
-                          attendanceStats.totalHours -
-                            attendanceStats.attendedHours
-                        ),
-                      },
-                    ]}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ percent }) =>
-                      `${(percent * 100).toFixed(0)}%`
-                    }
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    <Cell fill="#3b82f6" />
-                    <Cell fill="#e5e7eb" />
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Requirements Chart */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Attendance vs Required
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart
-                  data={[
-                    {
-                      name: "Hours",
-                      Attended: attendanceStats.attendedHours,
-                      Required: attendanceStats.requiredHours,
-                    },
-                  ]}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="Attended" fill="#3b82f6" />
-                  <Bar dataKey="Required" fill="#ef4444" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>

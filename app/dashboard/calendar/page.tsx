@@ -2,11 +2,23 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Link from "next/link";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from "date-fns";
+import { SelectNative } from "@/components/ui/select-native";
+import { DashboardNav } from "@/components/DashboardNav";
+import { PageLoader } from "@/components/PageLoader";
+import { NoSemesterState } from "@/components/NoSemesterState";
+import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
+import { Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  isSameMonth,
+} from "date-fns";
 
 interface CalendarEvent {
   id: string;
@@ -18,15 +30,17 @@ interface CalendarEvent {
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const EVENT_COLORS: Record<string, string> = {
+  exam: "text-destructive",
+  assignment: "text-primary",
+  deadline: "text-warning",
+  holiday: "text-success",
+  default: "text-muted-foreground",
+};
+
 export default function CalendarPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-lg">Loading...</div>
-        </div>
-      }
-    >
+    <Suspense fallback={<PageLoader />}>
       <CalendarContent />
     </Suspense>
   );
@@ -35,8 +49,7 @@ export default function CalendarPage() {
 function CalendarContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const semesterId = searchParams.get("semesterId");
+  const { semesterId, isResolvingSemester, hasNoSemesters } = useActiveSemester();
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -59,8 +72,10 @@ function CalendarContent() {
   useEffect(() => {
     if (semesterId) {
       fetchEvents();
+    } else if (!isResolvingSemester) {
+      setIsLoading(false);
     }
-  }, [semesterId]);
+  }, [semesterId, isResolvingSemester]);
 
   const fetchEvents = async () => {
     try {
@@ -105,294 +120,252 @@ function CalendarContent() {
   };
 
   const getEventsForDate = (date: Date) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.dueDate);
-      return isSameDay(eventDate, date);
-    });
+    return events.filter((event) => isSameDay(new Date(event.dueDate), date));
   };
 
-  const getEventColor = (type: string) => {
-    switch (type) {
-      case "exam":
-        return "bg-red-100 text-red-800";
-      case "assignment":
-        return "bg-blue-100 text-blue-800";
-      case "deadline":
-        return "bg-yellow-100 text-yellow-800";
-      case "holiday":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
+  const getEventColor = (type: string) => EVENT_COLORS[type] || EVENT_COLORS.default;
 
-  if (status === "loading" || isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+  if (status === "loading" || isLoading || isResolvingSemester) {
+    return <PageLoader />;
   }
 
   const daysInMonth = getDaysInMonth();
   const firstDayOfMonth = daysInMonth[0].getDay();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="space-x-4">
-            <Link href="/dashboard">
-              <Button variant="ghost">← Dashboard</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background pb-12">
+      <DashboardNav semesterId={semesterId} />
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Calendar</h1>
-          <Button onClick={() => setShowForm(!showForm)}>
-            {showForm ? "Cancel" : "+ Add Event"}
-          </Button>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
+          {semesterId && (
+            <Button onClick={() => setShowForm(!showForm)}>
+              {showForm ? (
+                <>
+                  <X className="h-4 w-4" /> Cancel
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" /> Add Event
+                </>
+              )}
+            </Button>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Calendar */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold text-gray-800">
-                  {format(currentDate, "MMMM yyyy")}
-                </h2>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      setCurrentDate(
-                        new Date(
-                          currentDate.getFullYear(),
-                          currentDate.getMonth() - 1
+        {hasNoSemesters ? (
+          <NoSemesterState />
+        ) : (
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            {/* Calendar */}
+            <div className="lg:col-span-2">
+              <div className="neu-raised rounded-2xl p-6">
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold text-foreground">
+                    {format(currentDate, "MMMM yyyy")}
+                  </h2>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        setCurrentDate(
+                          new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
                         )
-                      )
-                    }
-                  >
-                    ← Prev
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      setCurrentDate(
-                        new Date(
-                          currentDate.getFullYear(),
-                          currentDate.getMonth() + 1
+                      }
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        setCurrentDate(
+                          new Date(currentDate.getFullYear(), currentDate.getMonth() + 1)
                         )
-                      )
-                    }
-                  >
-                    Next →
-                  </Button>
+                      }
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Days of week */}
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {DAYS_OF_WEEK.map((day) => (
-                  <div
-                    key={day}
-                    className="text-center font-semibold text-gray-600 py-2"
-                  >
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-2">
-                {/* Empty cells for days before month starts */}
-                {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                  <div key={`empty-${i}`} className="aspect-square"></div>
-                ))}
-
-                {/* Days of month */}
-                {daysInMonth.map((day, index) => {
-                  const dayEvents = getEventsForDate(day);
-                  const isCurrentMonth = isSameMonth(day, currentDate);
-
-                  return (
+                {/* Days of week */}
+                <div className="mb-2 grid grid-cols-7 gap-2">
+                  {DAYS_OF_WEEK.map((day) => (
                     <div
-                      key={index}
-                      className={`aspect-square p-2 rounded border cursor-pointer hover:bg-gray-50 ${
-                        isCurrentMonth
-                          ? "border-gray-200"
-                          : "border-gray-100 bg-gray-50"
-                      }`}
-                      onClick={() => {
-                        setSelectedDate(day);
-                        setNewEvent({
-                          ...newEvent,
-                          dueDate: format(day, "yyyy-MM-dd"),
-                        });
-                        setShowForm(true);
-                      }}
+                      key={day}
+                      className="py-2 text-center text-sm font-semibold text-muted-foreground"
                     >
-                      <div
-                        className={`text-sm font-semibold mb-1 ${
-                          isCurrentMonth ? "text-gray-800" : "text-gray-400"
-                        }`}
-                      >
-                        {day.getDate()}
-                      </div>
-                      <div className="space-y-1">
-                        {dayEvents.slice(0, 2).map((event) => (
-                          <div
-                            key={event.id}
-                            className={`text-xs px-1 py-0.5 rounded truncate ${getEventColor(
-                              event.eventType
-                            )}`}
-                          >
-                            {event.title}
-                          </div>
-                        ))}
-                        {dayEvents.length > 2 && (
-                          <div className="text-xs text-gray-600 px-1">
-                            +{dayEvents.length - 2} more
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div>
-            {/* Add Event Form */}
-            {showForm && (
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h3 className="text-lg font-semibold mb-4 text-gray-800">
-                  New Event
-                </h3>
-                <form onSubmit={handleAddEvent} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Title
-                    </label>
-                    <Input
-                      value={newEvent.title}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, title: e.target.value })
-                      }
-                      placeholder="e.g., Math Exam"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Type
-                    </label>
-                    <select
-                      value={newEvent.eventType}
-                      onChange={(e) =>
-                        setNewEvent({
-                          ...newEvent,
-                          eventType: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="exam">Exam</option>
-                      <option value="assignment">Assignment</option>
-                      <option value="deadline">Deadline</option>
-                      <option value="holiday">Holiday</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Date
-                    </label>
-                    <Input
-                      type="date"
-                      value={newEvent.dueDate}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, dueDate: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description (Optional)
-                    </label>
-                    <Input
-                      value={newEvent.description}
-                      onChange={(e) =>
-                        setNewEvent({
-                          ...newEvent,
-                          description: e.target.value,
-                        })
-                      }
-                      placeholder="Add details"
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full">
-                    Add Event
-                  </Button>
-                </form>
-              </div>
-            )}
-
-            {/* Upcoming Events */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-800">
-                Upcoming Events
-              </h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {events
-                  .filter(
-                    (e) =>
-                      new Date(e.dueDate) >= new Date()
-                  )
-                  .sort(
-                    (a, b) =>
-                      new Date(a.dueDate).getTime() -
-                      new Date(b.dueDate).getTime()
-                  )
-                  .map((event) => (
-                    <div
-                      key={event.id}
-                      className={`p-3 rounded-lg ${getEventColor(
-                        event.eventType
-                      )}`}
-                    >
-                      <p className="font-semibold text-sm">{event.title}</p>
-                      <p className="text-xs mt-1">
-                        {format(new Date(event.dueDate), "MMM d, yyyy")}
-                      </p>
-                      {event.description && (
-                        <p className="text-xs mt-1 opacity-75">
-                          {event.description}
-                        </p>
-                      )}
+                      {day}
                     </div>
                   ))}
-                {events.filter((e) => new Date(e.dueDate) >= new Date()).length === 0 && (
-                  <p className="text-gray-500 text-sm text-center py-4">
-                    No upcoming events
-                  </p>
-                )}
+                </div>
+
+                {/* Calendar grid */}
+                <div className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                    <div key={`empty-${i}`} className="aspect-square" />
+                  ))}
+
+                  {daysInMonth.map((day, index) => {
+                    const dayEvents = getEventsForDate(day);
+                    const isCurrentMonth = isSameMonth(day, currentDate);
+
+                    return (
+                      <div
+                        key={index}
+                        className={`neu-pressable aspect-square cursor-pointer rounded-xl p-2 ${
+                          isCurrentMonth ? "neu-flat hover:neu-raised-sm" : "opacity-40"
+                        }`}
+                        onClick={() => {
+                          setSelectedDate(day);
+                          setNewEvent({
+                            ...newEvent,
+                            dueDate: format(day, "yyyy-MM-dd"),
+                          });
+                          setShowForm(true);
+                        }}
+                      >
+                        <div className="mb-1 text-sm font-semibold text-foreground">
+                          {day.getDate()}
+                        </div>
+                        <div className="space-y-1">
+                          {dayEvents.slice(0, 2).map((event) => (
+                            <div
+                              key={event.id}
+                              className={`truncate text-xs font-medium ${getEventColor(
+                                event.eventType
+                              )}`}
+                            >
+                              {event.title}
+                            </div>
+                          ))}
+                          {dayEvents.length > 2 && (
+                            <div className="text-xs text-muted-foreground">
+                              +{dayEvents.length - 2} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar */}
+            <div>
+              {/* Add Event Form */}
+              {showForm && (
+                <div className="neu-raised mb-6 rounded-2xl p-6">
+                  <h3 className="mb-4 text-lg font-semibold text-foreground">
+                    New Event
+                  </h3>
+                  <form onSubmit={handleAddEvent} className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Title
+                      </label>
+                      <Input
+                        value={newEvent.title}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, title: e.target.value })
+                        }
+                        placeholder="e.g., Math Exam"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Type
+                      </label>
+                      <SelectNative
+                        value={newEvent.eventType}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, eventType: e.target.value })
+                        }
+                      >
+                        <option value="exam">Exam</option>
+                        <option value="assignment">Assignment</option>
+                        <option value="deadline">Deadline</option>
+                        <option value="holiday">Holiday</option>
+                      </SelectNative>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Date
+                      </label>
+                      <Input
+                        type="date"
+                        value={newEvent.dueDate}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, dueDate: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-foreground">
+                        Description (Optional)
+                      </label>
+                      <Input
+                        value={newEvent.description}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, description: e.target.value })
+                        }
+                        placeholder="Add details"
+                      />
+                    </div>
+
+                    <Button type="submit" className="w-full">
+                      Add Event
+                    </Button>
+                  </form>
+                </div>
+              )}
+
+              {/* Upcoming Events */}
+              <div className="neu-raised rounded-2xl p-6">
+                <h3 className="mb-4 text-lg font-semibold text-foreground">
+                  Upcoming Events
+                </h3>
+                <div className="max-h-96 space-y-2 overflow-y-auto">
+                  {events
+                    .filter((e) => new Date(e.dueDate) >= new Date())
+                    .sort(
+                      (a, b) =>
+                        new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+                    )
+                    .map((event) => (
+                      <div key={event.id} className="neu-flat neu-inset rounded-xl p-3">
+                        <p className={`text-sm font-semibold ${getEventColor(event.eventType)}`}>
+                          {event.title}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {format(new Date(event.dueDate), "MMM d, yyyy")}
+                        </p>
+                        {event.description && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {event.description}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  {events.filter((e) => new Date(e.dueDate) >= new Date()).length === 0 && (
+                    <p className="py-4 text-center text-sm text-muted-foreground">
+                      No upcoming events
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
