@@ -48,9 +48,12 @@ function TimetableContent() {
     room: "",
     instructor: "",
   });
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState<Array<{ id: string; name: string; code?: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [newCourseName, setNewCourseName] = useState("");
+  const [newCourseCredits, setNewCourseCredits] = useState(3);
+  const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [subjectsInput, setSubjectsInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -116,6 +119,32 @@ function TimetableContent() {
       }
     } catch (error) {
       console.error("Error adding timetable entry:", error);
+    }
+  };
+
+  const handleAddCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCourseName.trim()) return;
+    setIsAddingCourse(true);
+    try {
+      const res = await fetch("/api/courses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCourseName.trim(),
+          creditHours: newCourseCredits,
+          semesterId,
+        }),
+      });
+      if (res.ok) {
+        setNewCourseName("");
+        setNewCourseCredits(3);
+        fetchCourses();
+      }
+    } catch (error) {
+      console.error("Error adding course:", error);
+    } finally {
+      setIsAddingCourse(false);
     }
   };
 
@@ -216,6 +245,59 @@ function TimetableContent() {
           <NoSemesterState />
         ) : (
           <>
+            {/* Courses */}
+            <div className="neu-raised mb-8 rounded-2xl p-6">
+              <h2 className="mb-2 text-xl font-semibold text-foreground">
+                Courses
+              </h2>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Add each course you&apos;re taking this semester. You&apos;ll need at
+                least one before you can add classes, mark attendance, or record
+                grades.
+              </p>
+
+              {courses.length > 0 && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {courses.map((course) => (
+                    <span
+                      key={course.id}
+                      className="neu-inset rounded-full px-3 py-1 text-sm font-medium text-foreground"
+                    >
+                      {course.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleAddCourse} className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[200px] flex-1">
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    Course Name
+                  </label>
+                  <Input
+                    value={newCourseName}
+                    onChange={(e) => setNewCourseName(e.target.value)}
+                    placeholder="e.g., Investment Analysis"
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    Credit Hours
+                  </label>
+                  <Input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    value={newCourseCredits}
+                    onChange={(e) => setNewCourseCredits(parseFloat(e.target.value))}
+                  />
+                </div>
+                <Button type="submit" disabled={isAddingCourse}>
+                  <Plus className="h-4 w-4" /> Add Course
+                </Button>
+              </form>
+            </div>
+
             {/* Upload & Auto-Extract */}
             {showUpload && (
               <div className="neu-raised mb-8 rounded-2xl p-6">
