@@ -467,6 +467,22 @@ function TimetableContent() {
     timetableEntries.filter((entry) => entry.dayOfWeek === dayIndex)
   );
 
+  // Two entries for the same course at the exact same day/time are almost
+  // always a leftover from a mis-scanned re-upload, not a real second
+  // session - and each copy inflates that course's weekly (and therefore
+  // semester) hour total, which is what makes the Attendance tab's totals
+  // stop matching what the Timetable actually shows.
+  const duplicateGroups = (() => {
+    const seen = new Map<string, TimetableEntry[]>();
+    for (const entry of timetableEntries) {
+      const key = `${entry.courseId}|${entry.dayOfWeek}|${entry.startTime}|${entry.endTime}`;
+      const list = seen.get(key) || [];
+      list.push(entry);
+      seen.set(key, list);
+    }
+    return Array.from(seen.values()).filter((group) => group.length > 1);
+  })();
+
   if (status === "loading" || isLoading || isResolvingSemester) {
     return <PageLoader />;
   }
@@ -513,6 +529,30 @@ function TimetableContent() {
             </div>
           )}
         </div>
+
+        {duplicateGroups.length > 0 && (
+          <div className="frosted-inset mb-8 rounded-2xl border border-destructive/40 p-4 text-sm">
+            <p className="font-semibold text-destructive">
+              Duplicate classes found - these are being counted twice in your attendance
+              totals and credit hours:
+            </p>
+            <ul className="mt-2 list-inside list-disc text-foreground">
+              {duplicateGroups.map((group, i) => {
+                const e = group[0];
+                return (
+                  <li key={i}>
+                    {e.course.name} on {DAYS[e.dayOfWeek]} {e.startTime}-{e.endTime} (appears{" "}
+                    {group.length} times)
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-muted-foreground">
+              Delete the extra one below using its trash icon, then edit that course&apos;s
+              credit hours if needed.
+            </p>
+          </div>
+        )}
 
         {hasNoSemesters ? (
           <NoSemesterState />
