@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { extractTimetable } from "@/lib/timetableExtraction";
+import { planEntryMerge } from "@/lib/timetableMerge";
 
 // Vision extraction on a detailed table image can take a while, and a
 // fallback path (OCR + a second model call) can run after it; give this
@@ -101,23 +102,12 @@ export async function POST(req: NextRequest) {
         where: { semesterId },
       });
 
-      let createdCount = 0;
-      for (const entry of extraction.entries) {
-        const courseId = codeToCourseId.get(entry.subjectCode.trim().toLowerCase());
-        if (!courseId) continue;
+      const mergePlan = planEntryMerge(extraction.entries, codeToCourseId, existingEntries);
 
-        const isDuplicate = existingEntries.some(
-          (e) =>
-            e.courseId === courseId &&
-            e.dayOfWeek === entry.dayOfWeek &&
-            e.startTime === entry.startTime &&
-            e.endTime === entry.endTime
-        );
-        if (isDuplicate) continue;
-
+      for (const entry of mergePlan.toCreate) {
         await prisma.timetableEntry.create({
           data: {
-            courseId,
+            courseId: entry.courseId,
             semesterId,
             dayOfWeek: entry.dayOfWeek,
             startTime: entry.startTime,
@@ -126,8 +116,16 @@ export async function POST(req: NextRequest) {
             instructor: entry.instructor,
           },
         });
-        createdCount++;
       }
+      const createdCount = mergePlan.toCreate.length;
+
+      const idToCourseName = new Map(existingCourses.map((c) => [c.id, c.name]));
+      const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const conflictNotes = mergePlan.skippedConflicts.map((c) => {
+        const attempted = idToCourseName.get(c.attemptedCourseId) || "a course";
+        const existing = idToCourseName.get(c.conflictingCourseId) || "another course";
+        return `${attempted} vs ${existing} on ${DAY_NAMES[c.dayOfWeek]} ${c.startTime}-${c.endTime}`;
+      });
 
       // Credit hours track weekly scheduled hours (1 hour/week = 1 credit),
       // so recompute them from each affected course's full timetable now
@@ -158,12 +156,18 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      let message = `Added ${createdCount} class${createdCount === 1 ? "" : "es"} to your timetable`;
+      if (conflictNotes.length > 0) {
+        message += `. Skipped ${conflictNotes.length} that clashed with an existing class already on your schedule: ${conflictNotes.join("; ")}. Check the Timetable tab and edit whichever one is wrong.`;
+      }
+
       return NextResponse.json(
         {
-          message: `Added ${createdCount} class${createdCount === 1 ? "" : "es"} to your timetable`,
+          message,
           uploadId: upload.id,
           entriesFound: extraction.entries.length,
           entriesCreated: createdCount,
+          skippedConflicts: mergePlan.skippedConflicts.length,
         },
         { status: 201 }
       );

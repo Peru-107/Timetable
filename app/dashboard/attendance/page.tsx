@@ -10,6 +10,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
+import { computeHoursFromTimes } from "@/lib/attendanceUtils";
 import {
   Plus,
   X,
@@ -80,6 +81,9 @@ function AttendanceContent() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [stats, setStats] = useState<AttendanceStats | null>(null);
   const [courses, setCourses] = useState<Array<{ id: string; name: string }>>([]);
+  const [timetableEntries, setTimetableEntries] = useState<
+    Array<{ courseId: string; dayOfWeek: number; startTime: string; endTime: string }>
+  >([]);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [newRecord, setNewRecord] = useState({
@@ -106,10 +110,28 @@ function AttendanceContent() {
     if (semesterId) {
       fetchAttendance();
       fetchCourses();
+      fetchTimetableEntries();
     } else if (!isResolvingSemester) {
       setIsLoading(false);
     }
   }, [semesterId, isResolvingSemester]);
+
+  // Default the manual form's duration to the selected course's actual
+  // scheduled length for that day, instead of a one-size-fits-all guess -
+  // still editable afterward for a one-off shorter/longer session.
+  useEffect(() => {
+    if (!newRecord.courseId || !newRecord.date) return;
+    const dayOfWeek = new Date(`${newRecord.date}T00:00:00`).getDay();
+    const matches = timetableEntries.filter(
+      (e) => e.courseId === newRecord.courseId && e.dayOfWeek === dayOfWeek
+    );
+    if (matches.length === 0) return;
+    const totalHours = matches.reduce(
+      (sum, e) => sum + computeHoursFromTimes(e.startTime, e.endTime),
+      0
+    );
+    setNewRecord((prev) => ({ ...prev, hoursDuration: totalHours }));
+  }, [newRecord.courseId, newRecord.date, timetableEntries]);
 
   const fetchAttendance = async () => {
     try {
@@ -131,6 +153,16 @@ function AttendanceContent() {
       setCourses(data);
     } catch (error) {
       console.error("Error fetching courses:", error);
+    }
+  };
+
+  const fetchTimetableEntries = async () => {
+    try {
+      const res = await fetch(`/api/timetable?semesterId=${semesterId}`);
+      const data = await res.json();
+      setTimetableEntries(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching timetable entries:", error);
     }
   };
 
