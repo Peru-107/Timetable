@@ -81,20 +81,26 @@ model TimetableEntry {
   @@map("timetable_entries")
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  CANCELLED
+}
+
 model AttendanceRecord {
-  id            String     @id @default(cuid())
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String           @id @default(cuid())
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId        String
-  course        Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course        Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   courseId      String
 
-  date          DateTime   // Date of the class
-  isPresent     Boolean    @default(false)
-  hoursDuration Float      @default(1)
+  date          DateTime         // Date of the class
+  status        AttendanceStatus @default(PRESENT)
+  hoursDuration Float            @default(1)
   notes         String?
 
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@map("attendance_records")
 }

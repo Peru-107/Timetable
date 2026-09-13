@@ -59,3 +59,73 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id, title, description, eventType, dueDate } = await req.json();
+    if (!id) {
+      return NextResponse.json({ error: "Event ID required" }, { status: 400 });
+    }
+
+    const existing = await prisma.calendarEvent.findFirst({
+      where: { id, userId: session.user.id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.calendarEvent.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        eventType,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Error updating calendar event:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Event ID required" }, { status: 400 });
+    }
+
+    const existing = await prisma.calendarEvent.findFirst({
+      where: { id, userId: session.user.id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    await prisma.calendarEvent.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting calendar event:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

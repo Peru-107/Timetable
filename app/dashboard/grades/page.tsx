@@ -10,7 +10,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, GraduationCap } from "lucide-react";
+import { Plus, X, GraduationCap, Pencil, Trash2, Check } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -23,6 +23,7 @@ import {
 
 interface Grade {
   id: string;
+  courseId: string;
   grade: number;
   percentage?: number;
   course: {
@@ -56,7 +57,7 @@ function GradesContent() {
 
   const [grades, setGrades] = useState<Grade[]>([]);
   const [cgpaData, setCGPAData] = useState<CGPAData | null>(null);
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState<Array<{ id: string; name: string }>>([]);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [newGrade, setNewGrade] = useState({
@@ -64,6 +65,8 @@ function GradesContent() {
     grade: 3.5,
     percentage: "",
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editGrade, setEditGrade] = useState({ grade: 3.5, percentage: "" });
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -129,6 +132,44 @@ function GradesContent() {
     }
   };
 
+  const startEditGrade = (grade: Grade) => {
+    setEditingId(grade.id);
+    setEditGrade({
+      grade: grade.grade,
+      percentage: grade.percentage != null ? String(grade.percentage) : "",
+    });
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    try {
+      const res = await fetch("/api/grades", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          grade: editGrade.grade,
+          percentage: editGrade.percentage ? parseFloat(editGrade.percentage) : null,
+        }),
+      });
+      if (res.ok) {
+        setEditingId(null);
+        fetchGrades();
+      }
+    } catch (error) {
+      console.error("Error updating grade:", error);
+    }
+  };
+
+  const handleDeleteGrade = async (id: string) => {
+    if (!confirm("Delete this grade?")) return;
+    try {
+      const res = await fetch(`/api/grades?id=${id}`, { method: "DELETE" });
+      if (res.ok) fetchGrades();
+    } catch (error) {
+      console.error("Error deleting grade:", error);
+    }
+  };
+
   const getGradeColor = (grade: number) => {
     if (grade >= 3.5) return "text-success";
     if (grade >= 3.0) return "text-primary";
@@ -168,9 +209,9 @@ function GradesContent() {
           <>
             {/* CGPA Card */}
             {cgpaData && (
-              <div className="neu-raised mb-8 rounded-2xl p-8">
+              <div className="frosted mb-8 rounded-2xl p-8">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="neu-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                  <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
                     <GraduationCap className="h-5 w-5 text-primary" />
                   </div>
                   <h2 className="text-2xl font-bold text-foreground">
@@ -179,7 +220,7 @@ function GradesContent() {
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="text-6xl font-bold text-primary">
+                    <p className="font-mono text-6xl font-bold text-primary">
                       {cgpaData.cgpa.toFixed(2)}
                     </p>
                     <p className="mt-2 text-lg text-muted-foreground">out of 4.0</p>
@@ -199,7 +240,7 @@ function GradesContent() {
 
             {/* Form */}
             {showForm && (
-              <div className="neu-raised mb-8 rounded-2xl p-6">
+              <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
                   Add Grade
                 </h2>
@@ -217,7 +258,7 @@ function GradesContent() {
                         required
                       >
                         <option value="">Select a course</option>
-                        {courses.map((course: any) => (
+                        {courses.map((course) => (
                           <option key={course.id} value={course.id}>
                             {course.name}
                           </option>
@@ -271,7 +312,7 @@ function GradesContent() {
 
             {/* Chart */}
             {cgpaData && cgpaData.courses.length > 0 && (
-              <div className="neu-raised mb-8 rounded-2xl p-6">
+              <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
                   Course Grades
                 </h2>
@@ -282,18 +323,18 @@ function GradesContent() {
                       grade: c.grade,
                     }))}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#d6dce6" />
-                    <XAxis dataKey="name" />
-                    <YAxis domain={[0, 4]} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" stroke="var(--muted-foreground)" />
+                    <YAxis domain={[0, 4]} stroke="var(--muted-foreground)" />
                     <Tooltip />
-                    <Bar dataKey="grade" fill="#4f6ef7" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="grade" fill="var(--primary)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
 
             {/* Grades Table */}
-            <div className="neu-raised overflow-hidden rounded-2xl">
+            <div className="frosted overflow-hidden rounded-2xl">
               <div className="px-6 py-4">
                 <h2 className="text-xl font-semibold text-foreground">
                   Grade Details
@@ -308,42 +349,121 @@ function GradesContent() {
                       <th className="px-6 py-3">GPA</th>
                       <th className="px-6 py-3">Percentage</th>
                       <th className="px-6 py-3">Grade Points</th>
+                      <th className="px-6 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {cgpaData?.courses.length === 0 ? (
+                    {grades.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                        <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                           No grades recorded yet
                         </td>
                       </tr>
                     ) : (
-                      cgpaData?.courses.map((course) => (
-                        <tr key={course.name}>
-                          <td className="px-6 py-4 text-sm font-medium text-foreground">
-                            {course.name}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-foreground">
-                            {course.creditHours}
-                          </td>
-                          <td className="px-6 py-4 text-sm">
-                            <span
-                              className={`neu-inset rounded-full px-3 py-1 text-xs font-semibold ${getGradeColor(
-                                course.grade
-                              )}`}
-                            >
-                              {course.grade.toFixed(2)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-foreground">
-                            {grades.find((g) => g.course.name === course.name)
-                              ?.percentage || "-"}
-                          </td>
-                          <td className="px-6 py-4 text-sm font-semibold text-foreground">
-                            {course.gradePoints.toFixed(2)}
-                          </td>
-                        </tr>
-                      ))
+                      grades.map((g) =>
+                        editingId === g.id ? (
+                          <tr key={g.id} className="frosted-inset">
+                            <td className="px-6 py-4 text-sm font-medium text-foreground">
+                              {g.course.name}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {g.course.creditHours}
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="4"
+                                step="0.1"
+                                className="h-9 w-20"
+                                value={editGrade.grade}
+                                onChange={(e) =>
+                                  setEditGrade({ ...editGrade, grade: parseFloat(e.target.value) })
+                                }
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                className="h-9 w-20"
+                                value={editGrade.percentage}
+                                onChange={(e) =>
+                                  setEditGrade({ ...editGrade, percentage: e.target.value })
+                                }
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-sm font-semibold text-foreground">
+                              {(editGrade.grade * g.course.creditHours).toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEdit(g.id)}
+                                  className="text-success"
+                                  aria-label="Save"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingId(null)}
+                                  className="text-muted-foreground"
+                                  aria-label="Cancel"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={g.id}>
+                            <td className="px-6 py-4 text-sm font-medium text-foreground">
+                              {g.course.name}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {g.course.creditHours}
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <span
+                                className={`frosted-inset rounded-full px-3 py-1 text-xs font-semibold ${getGradeColor(
+                                  g.grade
+                                )}`}
+                              >
+                                {g.grade.toFixed(2)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {g.percentage ?? "-"}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-semibold text-foreground">
+                              {(g.grade * g.course.creditHours).toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditGrade(g)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  aria-label="Edit grade"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteGrade(g.id)}
+                                  className="text-muted-foreground hover:text-destructive"
+                                  aria-label="Delete grade"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      )
                     )}
                   </tbody>
                 </table>

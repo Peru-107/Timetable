@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 
 export function NoSemesterState() {
   return (
-    <div className="neu-raised mx-auto mt-8 max-w-md rounded-2xl p-10 text-center">
-      <div className="neu-inset mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full">
+    <div className="frosted mx-auto mt-8 max-w-md rounded-2xl p-10 text-center">
+      <div className="frosted-inset mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full">
         <CalendarPlus className="h-7 w-7 text-primary" />
       </div>
       <h2 className="mb-2 text-xl font-semibold text-foreground">

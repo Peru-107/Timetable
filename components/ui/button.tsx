@@ -5,15 +5,15 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "neu-pressable inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "neu-raised text-primary hover:text-primary/90",
-        destructive: "neu-raised text-destructive hover:text-destructive/90",
-        outline: "neu-raised text-foreground",
-        secondary: "neu-flat border border-border text-foreground hover:neu-raised-sm",
-        ghost: "bg-transparent text-foreground hover:neu-raised-sm",
+        default: "frosted text-primary hover:brightness-105",
+        destructive: "frosted text-destructive hover:brightness-105",
+        outline: "frosted text-foreground",
+        secondary: "frosted-sm text-foreground",
+        ghost: "bg-transparent text-foreground hover:bg-black/5",
         link: "bg-transparent shadow-none text-primary underline-offset-4 hover:underline",
       },
       size: {

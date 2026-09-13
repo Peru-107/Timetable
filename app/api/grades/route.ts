@@ -76,3 +76,68 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id, grade, percentage } = await req.json();
+    if (!id) {
+      return NextResponse.json({ error: "Grade ID required" }, { status: 400 });
+    }
+
+    const existing = await prisma.grade.findFirst({
+      where: { id, userId: session.user.id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Grade not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.grade.update({
+      where: { id },
+      data: { grade, percentage },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Error updating grade:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ error: "Grade ID required" }, { status: 400 });
+    }
+
+    const existing = await prisma.grade.findFirst({
+      where: { id, userId: session.user.id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Grade not found" }, { status: 404 });
+    }
+
+    await prisma.grade.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting grade:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

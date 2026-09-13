@@ -15,6 +15,9 @@ import {
   X,
   CheckCircle2,
   AlertTriangle,
+  Pencil,
+  Trash2,
+  Check,
 } from "lucide-react";
 import {
   BarChart,
@@ -26,10 +29,13 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+type AttendanceStatus = "PRESENT" | "ABSENT" | "CANCELLED";
+
 interface AttendanceRecord {
   id: string;
+  courseId: string;
   date: string;
-  isPresent: boolean;
+  status: AttendanceStatus;
   hoursDuration: number;
   notes?: string;
   course: {
@@ -46,6 +52,18 @@ interface AttendanceStats {
   leavesUsed: number;
 }
 
+const STATUS_LABEL: Record<AttendanceStatus, string> = {
+  PRESENT: "Present",
+  ABSENT: "Absent",
+  CANCELLED: "Cancelled",
+};
+
+const STATUS_CLASS: Record<AttendanceStatus, string> = {
+  PRESENT: "text-success",
+  ABSENT: "text-destructive",
+  CANCELLED: "text-muted-foreground",
+};
+
 export default function AttendancePage() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -61,13 +79,19 @@ function AttendanceContent() {
 
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [stats, setStats] = useState<AttendanceStats | null>(null);
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState<Array<{ id: string; name: string }>>([]);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [newRecord, setNewRecord] = useState({
     courseId: "",
     date: new Date().toISOString().split("T")[0],
-    isPresent: true,
+    status: "PRESENT" as AttendanceStatus,
+    hoursDuration: 2,
+    notes: "",
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editRecord, setEditRecord] = useState({
+    status: "PRESENT" as AttendanceStatus,
     hoursDuration: 2,
     notes: "",
   });
@@ -123,7 +147,7 @@ function AttendanceContent() {
         setNewRecord({
           courseId: "",
           date: new Date().toISOString().split("T")[0],
-          isPresent: true,
+          status: "PRESENT",
           hoursDuration: 2,
           notes: "",
         });
@@ -132,6 +156,41 @@ function AttendanceContent() {
       }
     } catch (error) {
       console.error("Error adding attendance record:", error);
+    }
+  };
+
+  const startEditRecord = (record: AttendanceRecord) => {
+    setEditingId(record.id);
+    setEditRecord({
+      status: record.status,
+      hoursDuration: record.hoursDuration,
+      notes: record.notes || "",
+    });
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    try {
+      const res = await fetch("/api/attendance", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...editRecord }),
+      });
+      if (res.ok) {
+        setEditingId(null);
+        fetchAttendance();
+      }
+    } catch (error) {
+      console.error("Error updating attendance record:", error);
+    }
+  };
+
+  const handleDeleteRecord = async (id: string) => {
+    if (!confirm("Delete this attendance record?")) return;
+    try {
+      const res = await fetch(`/api/attendance?id=${id}`, { method: "DELETE" });
+      if (res.ok) fetchAttendance();
+    } catch (error) {
+      console.error("Error deleting attendance record:", error);
     }
   };
 
@@ -175,34 +234,34 @@ function AttendanceContent() {
             {/* Statistics */}
             {stats && (
               <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Attendance %
                   </h3>
-                  <p className="text-3xl font-bold text-primary">
+                  <p className="font-mono text-3xl font-bold text-primary">
                     {stats.attendancePercentage}%
                   </p>
                 </div>
 
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Hours Attended
                   </h3>
-                  <p className="text-3xl font-bold text-success">
+                  <p className="font-mono text-3xl font-bold text-success">
                     {stats.attendedHours}/{stats.totalHours}
                   </p>
                 </div>
 
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Leaves Available
                   </h3>
-                  <p className="text-3xl font-bold text-warning">
+                  <p className="font-mono text-3xl font-bold text-warning">
                     {stats.leavesAvailable}
                   </p>
                 </div>
 
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Status
                   </h3>
@@ -229,7 +288,7 @@ function AttendanceContent() {
 
             {/* Form */}
             {showForm && (
-              <div className="neu-raised mb-8 rounded-2xl p-6">
+              <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
                   Mark Attendance
                 </h2>
@@ -247,7 +306,7 @@ function AttendanceContent() {
                         required
                       >
                         <option value="">Select a course</option>
-                        {courses.map((course: any) => (
+                        {courses.map((course) => (
                           <option key={course.id} value={course.id}>
                             {course.name}
                           </option>
@@ -274,16 +333,17 @@ function AttendanceContent() {
                         Status
                       </label>
                       <SelectNative
-                        value={newRecord.isPresent ? "present" : "absent"}
+                        value={newRecord.status}
                         onChange={(e) =>
                           setNewRecord({
                             ...newRecord,
-                            isPresent: e.target.value === "present",
+                            status: e.target.value as AttendanceStatus,
                           })
                         }
                       >
-                        <option value="present">Present</option>
-                        <option value="absent">Absent</option>
+                        <option value="PRESENT">Present</option>
+                        <option value="ABSENT">Absent</option>
+                        <option value="CANCELLED">Cancelled</option>
                       </SelectNative>
                     </div>
 
@@ -330,24 +390,24 @@ function AttendanceContent() {
 
             {/* Chart */}
             {stats && (
-              <div className="neu-raised mb-8 rounded-2xl p-6">
+              <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
                   Attendance Overview
                 </h2>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#d6dce6" />
-                    <XAxis dataKey="name" />
-                    <YAxis domain={[0, 100]} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" stroke="var(--muted-foreground)" />
+                    <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" />
                     <Tooltip />
-                    <Bar dataKey="percentage" fill="#4f6ef7" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="percentage" fill="var(--primary)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
 
             {/* Records List */}
-            <div className="neu-raised overflow-hidden rounded-2xl">
+            <div className="frosted overflow-hidden rounded-2xl">
               <div className="px-6 py-4">
                 <h2 className="text-xl font-semibold text-foreground">
                   Attendance Records
@@ -362,41 +422,132 @@ function AttendanceContent() {
                       <th className="px-6 py-3">Status</th>
                       <th className="px-6 py-3">Duration</th>
                       <th className="px-6 py-3">Notes</th>
+                      <th className="px-6 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {records.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                        <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                           No attendance records yet
                         </td>
                       </tr>
                     ) : (
-                      records.map((record) => (
-                        <tr key={record.id}>
-                          <td className="px-6 py-4 text-sm text-foreground">
-                            {new Date(record.date).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-foreground">
-                            {record.course.name}
-                          </td>
-                          <td className="px-6 py-4 text-sm">
-                            <span
-                              className={`neu-inset rounded-full px-3 py-1 text-xs font-semibold ${
-                                record.isPresent ? "text-success" : "text-destructive"
-                              }`}
-                            >
-                              {record.isPresent ? "Present" : "Absent"}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-foreground">
-                            {record.hoursDuration}h
-                          </td>
-                          <td className="px-6 py-4 text-sm text-muted-foreground">
-                            {record.notes || "-"}
-                          </td>
-                        </tr>
-                      ))
+                      records.map((record) =>
+                        editingId === record.id ? (
+                          <tr key={record.id} className="frosted-inset">
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {new Date(record.date).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {record.course.name}
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <SelectNative
+                                value={editRecord.status}
+                                onChange={(e) =>
+                                  setEditRecord({
+                                    ...editRecord,
+                                    status: e.target.value as AttendanceStatus,
+                                  })
+                                }
+                                className="h-9"
+                              >
+                                <option value="PRESENT">Present</option>
+                                <option value="ABSENT">Absent</option>
+                                <option value="CANCELLED">Cancelled</option>
+                              </SelectNative>
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <Input
+                                type="number"
+                                min="0.5"
+                                step="0.5"
+                                className="h-9 w-20"
+                                value={editRecord.hoursDuration}
+                                onChange={(e) =>
+                                  setEditRecord({
+                                    ...editRecord,
+                                    hoursDuration: parseFloat(e.target.value),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <Input
+                                type="text"
+                                className="h-9"
+                                value={editRecord.notes}
+                                onChange={(e) =>
+                                  setEditRecord({ ...editRecord, notes: e.target.value })
+                                }
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEdit(record.id)}
+                                  className="text-success"
+                                  aria-label="Save"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingId(null)}
+                                  className="text-muted-foreground"
+                                  aria-label="Cancel"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={record.id}>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {new Date(record.date).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {record.course.name}
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <span
+                                className={`frosted-inset rounded-full px-3 py-1 text-xs font-semibold ${STATUS_CLASS[record.status]}`}
+                              >
+                                {STATUS_LABEL[record.status]}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-foreground">
+                              {record.hoursDuration}h
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {record.notes || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-sm">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditRecord(record)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  aria-label="Edit record"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRecord(record.id)}
+                                  className="text-muted-foreground hover:text-destructive"
+                                  aria-label="Delete record"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      )
                     )}
                   </tbody>
                 </table>

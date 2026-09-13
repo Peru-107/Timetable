@@ -10,7 +10,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, X, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
 import {
   format,
   startOfMonth,
@@ -38,6 +38,13 @@ const EVENT_COLORS: Record<string, string> = {
   default: "text-muted-foreground",
 };
 
+const EMPTY_EVENT = {
+  title: "",
+  description: "",
+  eventType: "exam",
+  dueDate: new Date().toISOString().split("T")[0],
+};
+
 export default function CalendarPage() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -54,14 +61,9 @@ function CalendarContent() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showForm, setShowForm] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [newEvent, setNewEvent] = useState({
-    title: "",
-    description: "",
-    eventType: "exam",
-    dueDate: new Date().toISOString().split("T")[0],
-  });
+  const [newEvent, setNewEvent] = useState(EMPTY_EVENT);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -89,27 +91,53 @@ function CalendarContent() {
     }
   };
 
+  const resetForm = () => {
+    setNewEvent(EMPTY_EVENT);
+    setEditingEventId(null);
+    setShowForm(false);
+  };
+
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const res = await fetch("/api/calendar", {
-        method: "POST",
+        method: editingEventId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newEvent, semesterId }),
+        body: JSON.stringify(
+          editingEventId ? { ...newEvent, id: editingEventId } : { ...newEvent, semesterId }
+        ),
       });
 
       if (res.ok) {
-        setNewEvent({
-          title: "",
-          description: "",
-          eventType: "exam",
-          dueDate: new Date().toISOString().split("T")[0],
-        });
-        setShowForm(false);
+        resetForm();
         fetchEvents();
       }
     } catch (error) {
-      console.error("Error adding event:", error);
+      console.error("Error saving event:", error);
+    }
+  };
+
+  const startEditEvent = (event: CalendarEvent) => {
+    setNewEvent({
+      title: event.title,
+      description: event.description || "",
+      eventType: event.eventType,
+      dueDate: format(new Date(event.dueDate), "yyyy-MM-dd"),
+    });
+    setEditingEventId(event.id);
+    setShowForm(true);
+  };
+
+  const handleDeleteEvent = async (id: string) => {
+    if (!confirm("Delete this event?")) return;
+    try {
+      const res = await fetch(`/api/calendar?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        if (editingEventId === id) resetForm();
+        fetchEvents();
+      }
+    } catch (error) {
+      console.error("Error deleting event:", error);
     }
   };
 
@@ -140,7 +168,7 @@ function CalendarContent() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
           {semesterId && (
-            <Button onClick={() => setShowForm(!showForm)}>
+            <Button onClick={() => (showForm ? resetForm() : setShowForm(true))}>
               {showForm ? (
                 <>
                   <X className="h-4 w-4" /> Cancel
@@ -160,7 +188,7 @@ function CalendarContent() {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             {/* Calendar */}
             <div className="lg:col-span-2">
-              <div className="neu-raised rounded-2xl p-6">
+              <div className="frosted rounded-2xl p-6">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-2xl font-semibold text-foreground">
                     {format(currentDate, "MMMM yyyy")}
@@ -217,12 +245,12 @@ function CalendarContent() {
                       <div
                         key={index}
                         className={`neu-pressable aspect-square cursor-pointer rounded-xl p-2 ${
-                          isCurrentMonth ? "neu-flat hover:neu-raised-sm" : "opacity-40"
+                          isCurrentMonth ? "frosted-inset" : "opacity-40"
                         }`}
                         onClick={() => {
-                          setSelectedDate(day);
+                          setEditingEventId(null);
                           setNewEvent({
-                            ...newEvent,
+                            ...EMPTY_EVENT,
                             dueDate: format(day, "yyyy-MM-dd"),
                           });
                           setShowForm(true);
@@ -257,11 +285,11 @@ function CalendarContent() {
 
             {/* Sidebar */}
             <div>
-              {/* Add Event Form */}
+              {/* Add/Edit Event Form */}
               {showForm && (
-                <div className="neu-raised mb-6 rounded-2xl p-6">
+                <div className="frosted mb-6 rounded-2xl p-6">
                   <h3 className="mb-4 text-lg font-semibold text-foreground">
-                    New Event
+                    {editingEventId ? "Edit Event" : "New Event"}
                   </h3>
                   <form onSubmit={handleAddEvent} className="space-y-4">
                     <div>
@@ -322,15 +350,26 @@ function CalendarContent() {
                       />
                     </div>
 
-                    <Button type="submit" className="w-full">
-                      Add Event
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button type="submit" className="flex-1">
+                        {editingEventId ? "Save Changes" : "Add Event"}
+                      </Button>
+                      {editingEventId && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={() => handleDeleteEvent(editingEventId)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </form>
                 </div>
               )}
 
               {/* Upcoming Events */}
-              <div className="neu-raised rounded-2xl p-6">
+              <div className="frosted rounded-2xl p-6">
                 <h3 className="mb-4 text-lg font-semibold text-foreground">
                   Upcoming Events
                 </h3>
@@ -342,8 +381,26 @@ function CalendarContent() {
                         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
                     )
                     .map((event) => (
-                      <div key={event.id} className="neu-flat neu-inset rounded-xl p-3">
-                        <p className={`text-sm font-semibold ${getEventColor(event.eventType)}`}>
+                      <div key={event.id} className="group frosted-inset relative rounded-xl p-3">
+                        <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
+                          <button
+                            type="button"
+                            onClick={() => startEditEvent(event)}
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label="Edit event"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEvent(event.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                            aria-label="Delete event"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <p className={`pr-10 text-sm font-semibold ${getEventColor(event.eventType)}`}>
                           {event.title}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">

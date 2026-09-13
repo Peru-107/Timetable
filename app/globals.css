@@ -1,31 +1,114 @@
 @import "tailwindcss";
 
 :root {
-  --background: #e9edf3;
-  --foreground: #2b3240;
-  --card: #e9edf3;
-  --card-foreground: #2b3240;
-  --primary: #4f6ef7;
+  --background: #f6f4ef;
+  --foreground: #221f1b;
+  --card: #f6f4ef;
+  --card-foreground: #221f1b;
+  --primary: #b5762c;
   --primary-foreground: #ffffff;
-  --secondary: #eef1f6;
-  --secondary-foreground: #2b3240;
-  --muted: #eef1f6;
-  --muted-foreground: #6b7385;
-  --accent: #eef1f6;
-  --accent-foreground: #2b3240;
-  --destructive: #e0564d;
+  --secondary: #4d6a80;
+  --secondary-foreground: #ffffff;
+  --muted: #efece5;
+  --muted-foreground: #82786a;
+  --accent: #efece5;
+  --accent-foreground: #221f1b;
+  --destructive: #96392c;
   --destructive-foreground: #ffffff;
-  --success: #2fa876;
+  --success: #6f8f52;
   --success-foreground: #ffffff;
-  --warning: #d98c1f;
+  --warning: #a8632f;
   --warning-foreground: #ffffff;
-  --border: #d6dce6;
-  --input: #d6dce6;
-  --ring: #4f6ef7;
-  --radius: 1rem;
+  --border: #e0dbcf;
+  --input: #e0dbcf;
+  --ring: #b5762c;
+  --radius: 1.125rem;
 
-  --neu-light: rgba(255, 255, 255, 0.85);
-  --neu-dark: rgba(163, 177, 198, 0.55);
+  --neu-light: #fdfbf8;
+  --neu-dark: #d9d2c5;
+
+  --glass-base: 255, 255, 255;
+  --glass-border: rgba(255, 255, 255, 0.45);
+  --glass-highlight: rgba(255, 255, 255, 0.75);
+  --glass-shadow: rgba(0, 0, 0, 0.1);
+
+  --bg-stop-1: #f8f6f1;
+  --bg-stop-2: #efeade;
+  --bg-stop-3: #e9e2d3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #16130f;
+    --foreground: #f2ece3;
+    --card: #16130f;
+    --card-foreground: #f2ece3;
+    --primary: #d99a4a;
+    --primary-foreground: #221a0e;
+    --secondary: #8fb3c9;
+    --secondary-foreground: #10222c;
+    --muted: #201b16;
+    --muted-foreground: #b0a493;
+    --accent: #201b16;
+    --accent-foreground: #f2ece3;
+    --destructive: #d97a5c;
+    --destructive-foreground: #2a1109;
+    --success: #8bb46a;
+    --success-foreground: #14210b;
+    --warning: #d3773f;
+    --warning-foreground: #2a1608;
+    --border: #2a241d;
+    --input: #2a241d;
+    --ring: #d99a4a;
+
+    --neu-light: #2c2620;
+    --neu-dark: #0e0c09;
+
+    --glass-base: 44, 38, 32;
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-highlight: rgba(255, 255, 255, 0.14);
+    --glass-shadow: rgba(0, 0, 0, 0.4);
+
+    --bg-stop-1: #1c1712;
+    --bg-stop-2: #14110d;
+    --bg-stop-3: #100d0a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: #16130f;
+  --foreground: #f2ece3;
+  --card: #16130f;
+  --card-foreground: #f2ece3;
+  --primary: #d99a4a;
+  --primary-foreground: #221a0e;
+  --secondary: #8fb3c9;
+  --secondary-foreground: #10222c;
+  --muted: #201b16;
+  --muted-foreground: #b0a493;
+  --accent: #201b16;
+  --accent-foreground: #f2ece3;
+  --destructive: #d97a5c;
+  --destructive-foreground: #2a1109;
+  --success: #8bb46a;
+  --success-foreground: #14210b;
+  --warning: #d3773f;
+  --warning-foreground: #2a1608;
+  --border: #2a241d;
+  --input: #2a241d;
+  --ring: #d99a4a;
+
+  --neu-light: #2c2620;
+  --neu-dark: #0e0c09;
+
+  --glass-base: 44, 38, 32;
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.14);
+  --glass-shadow: rgba(0, 0, 0, 0.4);
+
+  --bg-stop-1: #1c1712;
+  --bg-stop-2: #14110d;
+  --bg-stop-3: #100d0a;
 }
 
 @theme inline {
@@ -53,8 +136,8 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 0.375rem);
   --radius-sm: calc(var(--radius) - 0.625rem);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 * {
@@ -62,15 +145,46 @@
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 55%),
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--secondary) 15%, transparent), transparent 50%),
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, #ffffff 45%, transparent), transparent 60%),
+    linear-gradient(160deg, var(--bg-stop-1) 0%, var(--bg-stop-2) 55%, var(--bg-stop-3) 100%);
+  background-attachment: fixed;
 }
 
-/* Neumorphic surfaces: shapes are conveyed with dual soft shadows rather
-   than borders or flat fills, so every surface stays the same base color. */
+/* ---- Layered Glass: an opaque-tinted, blurred slab with a top-edge catch
+   light, sitting on soft neumorphic shadow rather than a hard drop shadow ---- */
+.frosted {
+  background: color-mix(in srgb, rgb(var(--glass-base)) 40%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1.5px 0 var(--glass-highlight),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    0 10px 26px var(--glass-shadow);
+}
+
+.frosted-sm {
+  background: color-mix(in srgb, rgb(var(--glass-base)) 40%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 4px 12px var(--glass-shadow);
+}
+
+.frosted-inset {
+  background: color-mix(in srgb, rgb(var(--glass-base)) 28%, transparent);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Neumorphic surfaces used for smaller/engraved controls (inputs, toggles) */
 .neu-raised {
   background: var(--background);
-  box-shadow: 7px 7px 14px var(--neu-dark), -7px -7px 14px var(--neu-light);
+  box-shadow: 6px 6px 13px var(--neu-dark), -6px -6px 13px var(--neu-light);
 }
 
 .neu-raised-sm {
@@ -81,11 +195,6 @@ body {
 .neu-inset {
   background: var(--background);
   box-shadow: inset 3px 3px 7px var(--neu-dark), inset -3px -3px 7px var(--neu-light);
-}
-
-.neu-inset-lg {
-  background: var(--background);
-  box-shadow: inset 5px 5px 11px var(--neu-dark), inset -5px -5px 11px var(--neu-light);
 }
 
 .neu-flat {

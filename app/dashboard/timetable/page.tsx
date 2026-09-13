@@ -9,19 +9,46 @@ import { SelectNative } from "@/components/ui/select-native";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
+import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayClassChip";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Plus,
+  X,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Pencil,
+  Trash2,
+  Check,
+} from "lucide-react";
 
 interface TimetableEntry {
   id: string;
+  courseId: string;
   dayOfWeek: number;
   startTime: string;
   endTime: string;
   room?: string;
   instructor?: string;
   course: {
+    id: string;
     name: string;
   };
+}
+
+interface Course {
+  id: string;
+  name: string;
+  code?: string;
+  creditHours: number;
+}
+
+interface AttendanceRecord {
+  id: string;
+  courseId: string;
+  date: string;
+  status: "PRESENT" | "ABSENT" | "CANCELLED";
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -60,6 +87,20 @@ async function compressImageIfNeeded(file: File): Promise<File> {
   return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
 }
 
+function computeHoursFromTimes(startTime: string, endTime: string): number {
+  const [sh, sm] = startTime.split(":").map(Number);
+  const [eh, em] = endTime.split(":").map(Number);
+  const minutes = eh * 60 + em - (sh * 60 + sm);
+  if (!Number.isFinite(minutes) || minutes <= 0) return 1;
+  return Math.round((minutes / 60) * 4) / 4;
+}
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export default function TimetablePage() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -82,16 +123,23 @@ function TimetableContent() {
     room: "",
     instructor: "",
   });
-  const [courses, setCourses] = useState<Array<{ id: string; name: string; code?: string }>>([]);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
   const [newCourseCredits, setNewCourseCredits] = useState(3);
   const [isAddingCourse, setIsAddingCourse] = useState(false);
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+  const [editCourseName, setEditCourseName] = useState("");
+  const [editCourseCredits, setEditCourseCredits] = useState(3);
   const [showUpload, setShowUpload] = useState(false);
   const [subjectsInput, setSubjectsInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [todayAttendance, setTodayAttendance] = useState<Record<string, AttendanceRecord>>({});
+
+  const todayDayIndex = new Date().getDay();
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -103,6 +151,7 @@ function TimetableContent() {
     if (semesterId) {
       fetchTimetable();
       fetchCourses();
+      fetchTodayAttendance();
     } else if (!isResolvingSemester) {
       setIsLoading(false);
     }
@@ -130,29 +179,81 @@ function TimetableContent() {
     }
   };
 
+  const fetchTodayAttendance = async () => {
+    try {
+      const res = await fetch(`/api/attendance?semesterId=${semesterId}`);
+      const data = await res.json();
+      const records: AttendanceRecord[] = data.records || [];
+      const dayStart = startOfToday();
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const map: Record<string, AttendanceRecord> = {};
+      for (const record of records) {
+        const recordDate = new Date(record.date);
+        if (recordDate >= dayStart && recordDate <= dayEnd) {
+          map[record.courseId] = record;
+        }
+      }
+      setTodayAttendance(map);
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
+    }
+  };
+
+  const resetEntryForm = () => {
+    setNewEntry({
+      courseId: "",
+      dayOfWeek: 0,
+      startTime: "09:00",
+      endTime: "11:00",
+      room: "",
+      instructor: "",
+    });
+    setEditingEntryId(null);
+    setShowForm(false);
+  };
+
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const res = await fetch("/api/timetable", {
-        method: "POST",
+        method: editingEntryId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newEntry, semesterId }),
+        body: JSON.stringify(
+          editingEntryId ? { ...newEntry, id: editingEntryId } : { ...newEntry, semesterId }
+        ),
       });
 
       if (res.ok) {
-        setNewEntry({
-          courseId: "",
-          dayOfWeek: 0,
-          startTime: "09:00",
-          endTime: "11:00",
-          room: "",
-          instructor: "",
-        });
-        setShowForm(false);
+        resetEntryForm();
         fetchTimetable();
       }
     } catch (error) {
-      console.error("Error adding timetable entry:", error);
+      console.error("Error saving timetable entry:", error);
+    }
+  };
+
+  const startEditEntry = (entry: TimetableEntry) => {
+    setNewEntry({
+      courseId: entry.courseId,
+      dayOfWeek: entry.dayOfWeek,
+      startTime: entry.startTime,
+      endTime: entry.endTime,
+      room: entry.room || "",
+      instructor: entry.instructor || "",
+    });
+    setEditingEntryId(entry.id);
+    setShowForm(true);
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    if (!confirm("Remove this class from your timetable?")) return;
+    try {
+      const res = await fetch(`/api/timetable?id=${id}`, { method: "DELETE" });
+      if (res.ok) fetchTimetable();
+    } catch (error) {
+      console.error("Error deleting timetable entry:", error);
     }
   };
 
@@ -179,6 +280,49 @@ function TimetableContent() {
       console.error("Error adding course:", error);
     } finally {
       setIsAddingCourse(false);
+    }
+  };
+
+  const startEditCourse = (course: Course) => {
+    setEditingCourseId(course.id);
+    setEditCourseName(course.name);
+    setEditCourseCredits(course.creditHours);
+  };
+
+  const handleSaveCourseEdit = async (id: string) => {
+    if (!editCourseName.trim()) return;
+    try {
+      const res = await fetch("/api/courses", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name: editCourseName.trim(), creditHours: editCourseCredits }),
+      });
+      if (res.ok) {
+        setEditingCourseId(null);
+        fetchCourses();
+        fetchTimetable();
+      }
+    } catch (error) {
+      console.error("Error updating course:", error);
+    }
+  };
+
+  const handleDeleteCourse = async (id: string) => {
+    if (
+      !confirm(
+        "Delete this course? This also removes its classes, attendance records, and grade."
+      )
+    )
+      return;
+    try {
+      const res = await fetch(`/api/courses?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchCourses();
+        fetchTimetable();
+        fetchTodayAttendance();
+      }
+    } catch (error) {
+      console.error("Error deleting course:", error);
     }
   };
 
@@ -248,6 +392,47 @@ function TimetableContent() {
     }
   };
 
+  const markAttendance = async (
+    entry: TimetableEntry,
+    entryStatus: "PRESENT" | "ABSENT" | "CANCELLED"
+  ) => {
+    try {
+      const res = await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseId: entry.courseId,
+          date: startOfToday().toISOString(),
+          status: entryStatus,
+          hoursDuration: computeHoursFromTimes(entry.startTime, entry.endTime),
+        }),
+      });
+      if (res.ok) {
+        const record = await res.json();
+        setTodayAttendance((prev) => ({ ...prev, [entry.courseId]: record }));
+      }
+    } catch (error) {
+      console.error("Error marking attendance:", error);
+    }
+  };
+
+  const clearAttendance = async (courseId: string) => {
+    const record = todayAttendance[courseId];
+    if (!record) return;
+    try {
+      const res = await fetch(`/api/attendance?id=${record.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setTodayAttendance((prev) => {
+          const next = { ...prev };
+          delete next[courseId];
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error("Error clearing attendance:", error);
+    }
+  };
+
   const entriesByDay = DAYS.map((day, dayIndex) =>
     timetableEntries.filter((entry) => entry.dayOfWeek === dayIndex)
   );
@@ -265,7 +450,9 @@ function TimetableContent() {
           <h1 className="text-3xl font-bold text-foreground">Timetable</h1>
           {semesterId && (
             <div className="flex flex-wrap gap-3">
-              <Button onClick={() => setShowForm(!showForm)}>
+              <Button
+                onClick={() => (showForm ? resetEntryForm() : setShowForm(true))}
+              >
                 {showForm ? (
                   <>
                     <X className="h-4 w-4" /> Cancel
@@ -302,7 +489,7 @@ function TimetableContent() {
         ) : (
           <>
             {/* Courses */}
-            <div className="neu-raised mb-8 rounded-2xl p-6">
+            <div className="frosted mb-8 rounded-2xl p-6">
               <h2 className="mb-2 text-xl font-semibold text-foreground">
                 Courses
               </h2>
@@ -314,14 +501,67 @@ function TimetableContent() {
 
               {courses.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
-                  {courses.map((course) => (
-                    <span
-                      key={course.id}
-                      className="neu-inset rounded-full px-3 py-1 text-sm font-medium text-foreground"
-                    >
-                      {course.name}
-                    </span>
-                  ))}
+                  {courses.map((course) =>
+                    editingCourseId === course.id ? (
+                      <div
+                        key={course.id}
+                        className="frosted-inset flex items-center gap-2 rounded-full px-3 py-1"
+                      >
+                        <input
+                          value={editCourseName}
+                          onChange={(e) => setEditCourseName(e.target.value)}
+                          className="w-28 border-0 bg-transparent text-sm text-foreground focus:outline-none"
+                        />
+                        <input
+                          type="number"
+                          min="0.5"
+                          step="0.5"
+                          value={editCourseCredits}
+                          onChange={(e) => setEditCourseCredits(parseFloat(e.target.value))}
+                          className="w-12 border-0 bg-transparent text-sm text-foreground focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveCourseEdit(course.id)}
+                          className="text-success"
+                          aria-label="Save course"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingCourseId(null)}
+                          className="text-muted-foreground"
+                          aria-label="Cancel edit"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span
+                        key={course.id}
+                        className="frosted-inset flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium text-foreground"
+                      >
+                        {course.name}
+                        <button
+                          type="button"
+                          onClick={() => startEditCourse(course)}
+                          className="text-muted-foreground hover:text-foreground"
+                          aria-label="Edit course"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCourse(course.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                          aria-label="Delete course"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    )
+                  )}
                 </div>
               )}
 
@@ -356,7 +596,7 @@ function TimetableContent() {
 
             {/* Upload & Auto-Extract */}
             {showUpload && (
-              <div className="neu-raised mb-8 rounded-2xl p-6">
+              <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="mb-2 text-xl font-semibold text-foreground">
                   Upload Timetable (PDF/JPG/PNG)
                 </h2>
@@ -380,7 +620,7 @@ function TimetableContent() {
 
                   <label>
                     <span
-                      className={`neu-pressable neu-raised inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-foreground ${
+                      className={`frosted-sm neu-pressable inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-foreground ${
                         isUploading ? "pointer-events-none opacity-50" : ""
                       }`}
                     >
@@ -405,7 +645,7 @@ function TimetableContent() {
 
                   {uploadResult && (
                     <div
-                      className={`neu-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
+                      className={`frosted-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
                         uploadResult.type === "success" ? "text-success" : "text-destructive"
                       }`}
                     >
@@ -421,11 +661,11 @@ function TimetableContent() {
               </div>
             )}
 
-            {/* Form to Add Entry */}
+            {/* Form to Add/Edit Entry */}
             {showForm && (
-              <div className="neu-raised mb-8 rounded-2xl p-6">
+              <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
-                  Add Class
+                  {editingEntryId ? "Edit Class" : "Add Class"}
                 </h2>
                 <form onSubmit={handleAddEntry} className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -441,7 +681,7 @@ function TimetableContent() {
                         required
                       >
                         <option value="">Select a course</option>
-                        {courses.map((course: any) => (
+                        {courses.map((course) => (
                           <option key={course.id} value={course.id}>
                             {course.name}
                           </option>
@@ -521,7 +761,7 @@ function TimetableContent() {
                   </div>
 
                   <Button type="submit" className="w-full">
-                    Add to Timetable
+                    {editingEntryId ? "Save Changes" : "Add to Timetable"}
                   </Button>
                 </form>
               </div>
@@ -530,22 +770,64 @@ function TimetableContent() {
             {/* Timetable Grid */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-7">
               {DAYS.map((day, dayIndex) => (
-                <div key={dayIndex} className="neu-raised rounded-2xl p-4">
+                <div key={dayIndex} className="frosted rounded-2xl p-4">
                   <h3 className="mb-4 text-center font-semibold text-foreground">
                     {day}
+                    {dayIndex === todayDayIndex && (
+                      <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        Today
+                      </span>
+                    )}
                   </h3>
                   <div className="space-y-2">
                     {entriesByDay[dayIndex].length === 0 ? (
                       <p className="text-center text-sm text-muted-foreground">
                         No classes
                       </p>
+                    ) : dayIndex === todayDayIndex ? (
+                      entriesByDay[dayIndex].map((entry) => (
+                        <TodayClassChip
+                          key={entry.id}
+                          courseName={entry.course.name}
+                          startTime={entry.startTime}
+                          endTime={entry.endTime}
+                          room={entry.room}
+                          instructor={entry.instructor}
+                          status={
+                            (todayAttendance[entry.courseId]?.status as TodayAttendanceStatus) ||
+                            null
+                          }
+                          onMarkPresent={() => markAttendance(entry, "PRESENT")}
+                          onMarkAbsent={() => markAttendance(entry, "ABSENT")}
+                          onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
+                          onClear={() => clearAttendance(entry.courseId)}
+                        />
+                      ))
                     ) : (
                       entriesByDay[dayIndex].map((entry) => (
-                        <div key={entry.id} className="neu-inset rounded-xl p-3">
-                          <p className="text-sm font-semibold text-foreground">
+                        <div key={entry.id} className="group frosted-inset relative rounded-xl p-3">
+                          <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
+                            <button
+                              type="button"
+                              onClick={() => startEditEntry(entry)}
+                              className="text-muted-foreground hover:text-foreground"
+                              aria-label="Edit class"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEntry(entry.id)}
+                              className="text-muted-foreground hover:text-destructive"
+                              aria-label="Delete class"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <p className="pr-10 text-sm font-semibold text-foreground">
                             {entry.course.name}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="font-mono text-xs text-muted-foreground">
                             {entry.startTime} - {entry.endTime}
                           </p>
                           {entry.room && (

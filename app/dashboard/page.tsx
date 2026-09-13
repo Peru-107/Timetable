@@ -160,9 +160,9 @@ export default function DashboardPage() {
             <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
               {/* Attendance Card */}
               {attendanceStats && (
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="neu-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                    <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
                       <ClipboardCheck className="h-5 w-5 text-primary" />
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">
@@ -186,9 +186,9 @@ export default function DashboardPage() {
 
               {/* CGPA Card */}
               {cgpaData && (
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="neu-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                    <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
                       <GraduationCap className="h-5 w-5 text-success" />
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">CGPA</h3>
@@ -204,9 +204,9 @@ export default function DashboardPage() {
 
               {/* Courses Card */}
               {activeSemester && (
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="neu-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                    <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
                       <BookMarked className="h-5 w-5 text-warning" />
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">Courses</h3>
@@ -225,7 +225,7 @@ export default function DashboardPage() {
             {attendanceStats && (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Attendance Chart */}
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <h3 className="mb-4 text-lg font-semibold text-foreground">
                     Attendance Distribution
                   </h3>
@@ -263,7 +263,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Requirements Chart */}
-                <div className="neu-raised rounded-2xl p-6">
+                <div className="frosted rounded-2xl p-6">
                   <h3 className="mb-4 text-lg font-semibold text-foreground">
                     Attendance vs Required
                   </h3>

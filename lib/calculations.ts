@@ -42,12 +42,19 @@ export async function calculateAttendanceStats(
   });
 
   const attendedHours = attendanceRecords
-    .filter((r) => r.isPresent)
+    .filter((r) => r.status === "PRESENT")
     .reduce((sum, r) => sum + r.hoursDuration, 0);
 
   const leavesUsed = attendanceRecords
-    .filter((r) => !r.isPresent)
+    .filter((r) => r.status === "ABSENT")
     .reduce((sum, r) => sum + r.hoursDuration, 0);
+
+  // Cancelled classes never happened, so they're removed from the total
+  // rather than counted against or for the student.
+  const cancelledHours = attendanceRecords
+    .filter((r) => r.status === "CANCELLED")
+    .reduce((sum, r) => sum + r.hoursDuration, 0);
+  totalHours = Math.max(0, totalHours - cancelledHours);
 
   const attendancePercentage =
     totalHours > 0 ? (attendedHours / totalHours) * 100 : 0;

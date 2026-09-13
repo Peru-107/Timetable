@@ -61,7 +61,7 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="mx-4 mt-4 sm:mx-6 lg:mx-8">
-        <div className="neu-raised mx-auto flex max-w-7xl items-center justify-between rounded-2xl px-6 py-4">
+        <div className="frosted mx-auto flex max-w-7xl items-center justify-between rounded-2xl px-6 py-4">
           <h1 className="text-xl font-bold text-foreground">
             Timetable Tracker
           </h1>
@@ -87,7 +87,7 @@ export default function Home() {
       {/* Hero Section */}
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
-          <div className="neu-raised mx-auto mb-6 flex w-fit items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary">
+          <div className="frosted mx-auto mb-6 flex w-fit items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary">
             <Sparkles className="h-4 w-4" />
             Built for students
           </div>
@@ -118,8 +118,8 @@ export default function Home() {
         {/* Features Section */}
         <div className="mt-20 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map(({ icon: Icon, title, description }) => (
-            <div key={title} className="neu-raised rounded-2xl p-8">
-              <div className="neu-inset mb-4 flex h-12 w-12 items-center justify-center rounded-xl">
+            <div key={title} className="frosted rounded-2xl p-8">
+              <div className="frosted-inset mb-4 flex h-12 w-12 items-center justify-center rounded-xl">
                 <Icon className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-2 text-lg font-semibold text-foreground">
@@ -131,7 +131,7 @@ export default function Home() {
         </div>
 
         {/* Stats Section */}
-        <div className="neu-raised mt-20 rounded-2xl p-10 sm:p-12">
+        <div className="frosted mt-20 rounded-2xl p-10 sm:p-12">
           <div className="grid grid-cols-1 gap-8 text-center sm:grid-cols-3">
             <div>
               <div className="mb-2 text-4xl font-bold text-primary">100%</div>

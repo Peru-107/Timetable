@@ -55,8 +55,8 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <div className="neu-raised w-full max-w-md rounded-2xl p-8">
-        <div className="neu-inset mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl">
+      <div className="frosted w-full max-w-md rounded-2xl p-8">
+        <div className="frosted-inset mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl">
           <UserPlus className="h-7 w-7 text-primary" />
         </div>
         <h1 className="mb-6 text-center text-2xl font-bold text-foreground">
@@ -117,7 +117,7 @@ export default function RegisterPage() {
           </div>
 
           {error && (
-            <div className="neu-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+            <div className="frosted-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>

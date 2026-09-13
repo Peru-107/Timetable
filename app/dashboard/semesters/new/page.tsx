@@ -54,7 +54,7 @@ export default function NewSemesterPage() {
   return (
     <div className="min-h-screen bg-background pb-12">
       <nav className="mx-4 mb-8 mt-4 sm:mx-6 lg:mx-8">
-        <div className="neu-raised mx-auto flex max-w-7xl items-center rounded-2xl px-6 py-4">
+        <div className="frosted mx-auto flex max-w-7xl items-center rounded-2xl px-6 py-4">
           <Link href="/dashboard">
             <Button variant="ghost">
               <ArrowLeft className="h-4 w-4" /> Back
@@ -64,8 +64,8 @@ export default function NewSemesterPage() {
       </nav>
 
       <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
-        <div className="neu-raised rounded-2xl p-8">
-          <div className="neu-inset mb-6 flex h-14 w-14 items-center justify-center rounded-2xl">
+        <div className="frosted rounded-2xl p-8">
+          <div className="frosted-inset mb-6 flex h-14 w-14 items-center justify-center rounded-2xl">
             <CalendarRange className="h-7 w-7 text-primary" />
           </div>
           <h1 className="mb-8 text-3xl font-bold text-foreground">
@@ -120,7 +120,7 @@ export default function NewSemesterPage() {
             </div>
 
             {error && (
-              <div className="neu-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+              <div className="frosted-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
@@ -131,7 +131,7 @@ export default function NewSemesterPage() {
             </Button>
           </form>
 
-          <div className="neu-inset mt-8 rounded-2xl p-4">
+          <div className="frosted-inset mt-8 rounded-2xl p-4">
             <p className="mb-2 text-sm font-semibold text-foreground">Next Steps</p>
             <p className="text-sm text-muted-foreground">
               After creating a semester, you&apos;ll be able to:
