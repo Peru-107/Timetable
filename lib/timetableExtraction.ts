@@ -1,8 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
+import { createWorker } from "tesseract.js";
 
-// Newest model first; fall back to an older, less contended Flash model if
-// the primary one is transiently overloaded (503 UNAVAILABLE / 429).
-const MODELS_IN_PRIORITY_ORDER = ["gemini-3.8-flash", "gemini-2.5-flash"];
+// Try established, less-contended models before the newest flagship, which
+// is more likely to hit capacity limits (503 UNAVAILABLE) on the free tier.
+const VISION_MODELS = ["gemini-2.5-flash", "gemini-3.7-flash", "gemini-3.8-flash"];
+const TEXT_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-3.7-flash"];
 
 function isRetryableStatus(error: unknown): boolean {
   const status = (error as { status?: number } | undefined)?.status;
@@ -73,13 +75,76 @@ const RESPONSE_SCHEMA = {
   required: ["courses", "entries"],
 } as const;
 
+const SHARED_RULES =
+  "These timetables frequently list several parallel elective sections in the same day/time slot (e.g. two " +
+  "different subjects shown side by side in the same cell or column) because they cover an entire cohort, " +
+  "not one student. Only extract sessions for the specific subjects the student tells you they take - ignore " +
+  "every other subject shown on the sheet, even if it appears in the same time slot. Match subject codes " +
+  "loosely: ignore differences in spacing, case, and punctuation (e.g. 'IB3' matches 'IB 3'). If the sheet " +
+  "includes a legend or key mapping short codes to full subject names, use it to fill in full names; " +
+  "otherwise reuse the code as the name. Convert all times to 24-hour HH:MM format.";
+
+const SYSTEM_INSTRUCTION_VISION =
+  "You read university class timetable images or PDFs and extract a student's personal schedule from them. " +
+  SHARED_RULES;
+
+const SYSTEM_INSTRUCTION_TEXT_FALLBACK =
+  "You read raw OCR text extracted from a photo of a university class timetable and reconstruct a student's " +
+  "personal schedule from it. The source was a table, so OCR may have scrambled row/column order or run " +
+  "fields together - use any layout clues still present (headers, numbers that look like times, proximity of " +
+  "a subject code to a time range) to do your best. " +
+  SHARED_RULES;
+
+async function ocrExtractText(fileBuffer: Buffer): Promise<string> {
+  // Vercel's filesystem is read-only outside /tmp; tesseract.js needs a
+  // writable cachePath there for its downloaded traineddata.
+  const worker = await createWorker("eng", undefined, { cachePath: "/tmp" });
+  try {
+    const { data } = await worker.recognize(fileBuffer);
+    return data.text;
+  } finally {
+    await worker.terminate();
+  }
+}
+
+async function callGemini(
+  client: GoogleGenAI,
+  models: string[],
+  contents: Array<{ role: string; parts: Array<Record<string, unknown>> }>,
+  systemInstruction: string
+) {
+  let lastError: unknown;
+  for (const model of models) {
+    try {
+      return await client.models.generateContent({
+        model,
+        contents,
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: RESPONSE_SCHEMA,
+        },
+      });
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableStatus(error)) {
+        throw error;
+      }
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Gemini is temporarily unavailable. Please try again shortly.");
+}
+
 /**
  * Master university timetables often show several parallel elective
  * sections in the same slot (e.g. two electives side by side on the same
  * day/time). We ask Gemini to read the table visually and keep only the
  * sessions matching the student's own subjects, since plain OCR text has no
  * sense of table structure and can't tell which subject belongs to which
- * cell in that layout.
+ * cell in that layout - that's why vision is tried first, with OCR text
+ * only used as a last-resort fallback if every vision model is overloaded.
  */
 export async function extractTimetable(
   fileBuffer: Buffer,
@@ -88,62 +153,50 @@ export async function extractTimetable(
 ): Promise<TimetableExtraction> {
   const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const base64Data = fileBuffer.toString("base64");
+  const subjectsLine = subjectCodes.join(", ");
 
-  const contents = [
+  const visionContents = [
     {
       role: "user",
       parts: [
         { inlineData: { mimeType, data: base64Data } },
         {
           text:
-            "This is my class timetable. My subjects are: " +
-            subjectCodes.join(", ") +
-            ". Extract every class session for exactly these subjects, across every day shown, with their day, " +
-            "start time, end time, room, and instructor where available. Leave room or instructor as an empty " +
-            "string if not shown.",
+            `This is my class timetable. My subjects are: ${subjectsLine}. Extract every class session for ` +
+            "exactly these subjects, across every day shown, with their day, start time, end time, room, and " +
+            "instructor where available. Leave room or instructor as an empty string if not shown.",
         },
       ],
     },
   ];
 
-  const config = {
-    systemInstruction:
-      "You read university class timetable images or PDFs and extract a student's personal schedule from them. " +
-      "These timetables frequently list several parallel elective sections in the same day/time slot (e.g. two " +
-      "different subjects shown side by side in the same cell or column) because they cover an entire cohort, " +
-      "not one student. Only extract sessions for the specific subjects the student tells you they take - ignore " +
-      "every other subject shown on the sheet, even if it appears in the same time slot. Match subject codes " +
-      "loosely: ignore differences in spacing, case, and punctuation (e.g. 'IB3' matches 'IB 3'). If the sheet " +
-      "includes a legend or key mapping short codes to full subject names, use it to fill in full names; " +
-      "otherwise reuse the code as the name. Convert all times to 24-hour HH:MM format.",
-    responseMimeType: "application/json",
-    responseSchema: RESPONSE_SCHEMA,
-  };
-
-  let lastError: unknown;
-  let response: Awaited<ReturnType<typeof client.models.generateContent>> | undefined;
-
-  outer: for (const model of MODELS_IN_PRIORITY_ORDER) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        response = await client.models.generateContent({ model, contents, config });
-        break outer;
-      } catch (error) {
-        lastError = error;
-        if (!isRetryableStatus(error)) {
-          throw error;
-        }
-        if (attempt === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
-      }
+  let response;
+  try {
+    response = await callGemini(client, VISION_MODELS, visionContents, SYSTEM_INSTRUCTION_VISION);
+  } catch (visionError) {
+    const canFallBackToOcr = isRetryableStatus(visionError) && mimeType.startsWith("image/");
+    if (!canFallBackToOcr) {
+      throw visionError;
     }
-  }
 
-  if (!response) {
-    throw lastError instanceof Error
-      ? lastError
-      : new Error("Gemini is temporarily unavailable. Please try again shortly.");
+    const ocrText = await ocrExtractText(fileBuffer);
+    if (!ocrText.trim()) {
+      throw visionError;
+    }
+
+    const textContents = [
+      {
+        role: "user",
+        parts: [
+          {
+            text:
+              `This is OCR text extracted from a photo of my class timetable. My subjects are: ${subjectsLine}. ` +
+              `Raw OCR text:\n\n${ocrText}`,
+          },
+        ],
+      },
+    ];
+    response = await callGemini(client, TEXT_FALLBACK_MODELS, textContents, SYSTEM_INSTRUCTION_TEXT_FALLBACK);
   }
 
   const text = response.text;
