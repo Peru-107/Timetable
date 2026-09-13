@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type, type Schema } from "@google/genai";
 import { createWorker } from "tesseract.js";
 
 // Try established, less-contended models before the newest flagship, which
@@ -23,21 +23,25 @@ export interface TimetableExtraction {
   }>;
 }
 
-const RESPONSE_SCHEMA = {
-  type: "object",
+// Typed as Schema so the compiler catches malformed enum values (the
+// Gemini API expects uppercase Type members - e.g. "OBJECT", not "object" -
+// and lowercase values were previously silently accepted by the SDK's
+// looser inline object literal, then rejected by the API at request time).
+const RESPONSE_SCHEMA: Schema = {
+  type: Type.OBJECT,
   properties: {
     courses: {
-      type: "array",
+      type: Type.ARRAY,
       description: "One entry per distinct subject code that appears in entries[]",
       items: {
-        type: "object",
+        type: Type.OBJECT,
         properties: {
           code: {
-            type: "string",
+            type: Type.STRING,
             description: "Short subject code exactly as shown in the timetable, e.g. 'IA 3'",
           },
           name: {
-            type: "string",
+            type: Type.STRING,
             description:
               "Full subject name from the legend/key if one is present (e.g. 'Investment Analysis'), otherwise the same as code",
           },
@@ -46,25 +50,28 @@ const RESPONSE_SCHEMA = {
       },
     },
     entries: {
-      type: "array",
+      type: Type.ARRAY,
       description: "One entry per class session found for the requested subjects",
       items: {
-        type: "object",
+        type: Type.OBJECT,
         properties: {
           subjectCode: {
-            type: "string",
+            type: Type.STRING,
             description: "Must exactly match one of the codes in courses[].code",
           },
           dayOfWeek: {
-            type: "integer",
+            type: Type.INTEGER,
             description:
               "0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday",
           },
-          startTime: { type: "string", description: "24-hour HH:MM, e.g. '09:00'" },
-          endTime: { type: "string", description: "24-hour HH:MM, e.g. '11:00'" },
-          room: { type: "string", description: "Room or venue code if shown, else empty string" },
+          startTime: { type: Type.STRING, description: "24-hour HH:MM, e.g. '09:00'" },
+          endTime: { type: Type.STRING, description: "24-hour HH:MM, e.g. '11:00'" },
+          room: {
+            type: Type.STRING,
+            description: "Room or venue code if shown, else empty string",
+          },
           instructor: {
-            type: "string",
+            type: Type.STRING,
             description: "Instructor name or initials if shown, else empty string",
           },
         },
@@ -73,7 +80,7 @@ const RESPONSE_SCHEMA = {
     },
   },
   required: ["courses", "entries"],
-} as const;
+};
 
 const SHARED_RULES =
   "These timetables frequently list several parallel elective sections in the same day/time slot (e.g. two " +
