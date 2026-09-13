@@ -116,6 +116,9 @@ function TimetableContent() {
   const [showForm, setShowForm] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
   const [newCourseCredits, setNewCourseCredits] = useState(3);
+  const [newCourseSchedule, setNewCourseSchedule] = useState<
+    Array<{ dayOfWeek: number; startTime: string; endTime: string }>
+  >([{ dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }]);
   const [isAddingCourse, setIsAddingCourse] = useState(false);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [editCourseName, setEditCourseName] = useState("");
@@ -244,6 +247,30 @@ function TimetableContent() {
     }
   };
 
+  const scheduleRowsWithTimes = newCourseSchedule.filter((r) => r.startTime && r.endTime);
+  const scheduleCreditHours = scheduleRowsWithTimes.reduce(
+    (sum, r) => sum + computeHoursFromTimes(r.startTime, r.endTime),
+    0
+  );
+
+  const addCourseScheduleRow = () => {
+    setNewCourseSchedule((rows) => [...rows, { dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }]);
+  };
+
+  const removeCourseScheduleRow = (index: number) => {
+    setNewCourseSchedule((rows) => rows.filter((_, i) => i !== index));
+  };
+
+  const updateCourseScheduleRow = (
+    index: number,
+    field: "dayOfWeek" | "startTime" | "endTime",
+    value: string | number
+  ) => {
+    setNewCourseSchedule((rows) =>
+      rows.map((row, i) => (i === index ? { ...row, [field]: value } : row))
+    );
+  };
+
   const handleAddCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCourseName.trim()) return;
@@ -254,14 +281,30 @@ function TimetableContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newCourseName.trim(),
-          creditHours: newCourseCredits,
+          creditHours: scheduleRowsWithTimes.length > 0 ? scheduleCreditHours : newCourseCredits,
           semesterId,
         }),
       });
       if (res.ok) {
+        const created = await res.json();
+        for (const row of scheduleRowsWithTimes) {
+          await fetch("/api/timetable", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              courseId: created.id,
+              semesterId,
+              dayOfWeek: row.dayOfWeek,
+              startTime: row.startTime,
+              endTime: row.endTime,
+            }),
+          });
+        }
         setNewCourseName("");
         setNewCourseCredits(3);
+        setNewCourseSchedule([{ dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }]);
         fetchCourses();
+        if (scheduleRowsWithTimes.length > 0) fetchTimetable();
       }
     } catch (error) {
       console.error("Error adding course:", error);
@@ -555,29 +598,92 @@ function TimetableContent() {
                 </div>
               )}
 
-              <form onSubmit={handleAddCourse} className="flex flex-wrap items-end gap-3">
-                <div className="min-w-[200px] flex-1">
-                  <label className="mb-2 block text-sm font-medium text-foreground">
-                    Course Name
-                  </label>
-                  <Input
-                    value={newCourseName}
-                    onChange={(e) => setNewCourseName(e.target.value)}
-                    placeholder="e.g., Investment Analysis"
-                  />
+              <form onSubmit={handleAddCourse} className="space-y-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="min-w-[200px] flex-1">
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Course Name
+                    </label>
+                    <Input
+                      value={newCourseName}
+                      onChange={(e) => setNewCourseName(e.target.value)}
+                      placeholder="e.g., Investment Analysis"
+                    />
+                  </div>
+                  <div className="w-40">
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Credit Hours
+                    </label>
+                    {scheduleRowsWithTimes.length > 0 ? (
+                      <div className="frosted-inset flex h-11 items-center rounded-xl px-4 text-sm text-foreground">
+                        {scheduleCreditHours}{" "}
+                        <span className="ml-1 text-xs text-muted-foreground">(auto)</span>
+                      </div>
+                    ) : (
+                      <Input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        value={newCourseCredits}
+                        onChange={(e) => setNewCourseCredits(parseFloat(e.target.value))}
+                      />
+                    )}
+                  </div>
                 </div>
-                <div className="w-32">
+
+                <div>
                   <label className="mb-2 block text-sm font-medium text-foreground">
-                    Credit Hours
+                    Weekly Schedule (Optional)
                   </label>
-                  <Input
-                    type="number"
-                    min="0.5"
-                    step="0.5"
-                    value={newCourseCredits}
-                    onChange={(e) => setNewCourseCredits(parseFloat(e.target.value))}
-                  />
+                  <div className="space-y-2">
+                    {newCourseSchedule.map((row, index) => (
+                      <div key={index} className="flex flex-wrap items-center gap-2">
+                        <SelectNative
+                          value={row.dayOfWeek}
+                          onChange={(e) =>
+                            updateCourseScheduleRow(index, "dayOfWeek", parseInt(e.target.value))
+                          }
+                          className="w-36"
+                        >
+                          {DAYS.map((day, dayIdx) => (
+                            <option key={dayIdx} value={dayIdx}>
+                              {day}
+                            </option>
+                          ))}
+                        </SelectNative>
+                        <Input
+                          type="time"
+                          value={row.startTime}
+                          onChange={(e) => updateCourseScheduleRow(index, "startTime", e.target.value)}
+                          className="w-32"
+                        />
+                        <span className="text-sm text-muted-foreground">to</span>
+                        <Input
+                          type="time"
+                          value={row.endTime}
+                          onChange={(e) => updateCourseScheduleRow(index, "endTime", e.target.value)}
+                          className="w-32"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeCourseScheduleRow(index)}
+                          className="text-muted-foreground hover:text-destructive"
+                          aria-label="Remove this day"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addCourseScheduleRow}
+                    className="mt-2 flex items-center gap-1 text-sm font-medium text-primary"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add another day
+                  </button>
                 </div>
+
                 <Button type="submit" disabled={isAddingCourse}>
                   <Plus className="h-4 w-4" /> Add Course
                 </Button>
@@ -791,12 +897,14 @@ function TimetableContent() {
                           onMarkAbsent={() => markAttendance(entry, "ABSENT")}
                           onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
                           onClear={() => clearAttendance(entry.courseId)}
+                          onEdit={() => startEditEntry(entry)}
+                          onDelete={() => handleDeleteEntry(entry.id)}
                         />
                       ))
                     ) : (
                       entriesByDay[dayIndex].map((entry) => (
-                        <div key={entry.id} className="group frosted-inset relative rounded-xl p-3">
-                          <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
+                        <div key={entry.id} className="frosted-inset relative rounded-xl p-3">
+                          <div className="absolute right-2 top-2 flex gap-1">
                             <button
                               type="button"
                               onClick={() => startEditEntry(entry)}

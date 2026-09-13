@@ -175,7 +175,11 @@ export default function DashboardPage() {
                       Attendance
                     </h3>
                   </div>
-                  <div className="mb-2 text-4xl font-bold text-primary">
+                  <div
+                    className={`mb-2 text-4xl font-bold ${
+                      attendanceStats.attendancePercentage >= 80 ? "text-success" : "text-destructive"
+                    }`}
+                  >
                     {attendanceStats.attendancePercentage}%
                   </div>
                   <p className="mb-4 text-muted-foreground">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react";
 import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayClassChip";
 import { computeHoursFromTimes, startOfDay, isSameDay } from "@/lib/attendanceUtils";
@@ -37,6 +38,7 @@ export function DailyAttendanceCard({
   semesterId: string;
   onChange?: () => void;
 }) {
+  const router = useRouter();
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
@@ -116,6 +118,22 @@ export function DailyAttendanceCard({
     }
   };
 
+  const deleteEntry = async (id: string) => {
+    if (!confirm("Remove this class from your timetable?")) return;
+    try {
+      const res = await fetch(`/api/timetable?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setEntries((prev) => prev.filter((e) => e.id !== id));
+      }
+    } catch (error) {
+      console.error("Error deleting timetable entry:", error);
+    }
+  };
+
+  const editEntry = () => {
+    router.push(`/dashboard/timetable?semesterId=${semesterId}`);
+  };
+
   const entriesForDay = entries.filter((entry) => entry.dayOfWeek === selectedDate.getDay());
 
   const dateLabel = selectedDate.toLocaleDateString(undefined, {
@@ -189,6 +207,8 @@ export function DailyAttendanceCard({
               onMarkAbsent={() => markAttendance(entry, "ABSENT")}
               onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
               onClear={() => clearAttendance(entry.courseId)}
+              onEdit={editEntry}
+              onDelete={() => deleteEntry(entry.id)}
             />
           ))}
         </div>

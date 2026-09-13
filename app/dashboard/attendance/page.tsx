@@ -53,6 +53,15 @@ interface AttendanceStats {
   leavesUsed: number;
 }
 
+interface CourseAttendanceStat {
+  courseId: string;
+  courseName: string;
+  totalHours: number;
+  attendedHours: number;
+  leavesUsed: number;
+  hoursAvailableToMiss: number;
+}
+
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
   PRESENT: "Present",
   ABSENT: "Absent",
@@ -80,6 +89,7 @@ function AttendanceContent() {
 
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [stats, setStats] = useState<AttendanceStats | null>(null);
+  const [statsByCourse, setStatsByCourse] = useState<CourseAttendanceStat[]>([]);
   const [courses, setCourses] = useState<Array<{ id: string; name: string }>>([]);
   const [timetableEntries, setTimetableEntries] = useState<
     Array<{ courseId: string; dayOfWeek: number; startTime: string; endTime: string }>
@@ -139,6 +149,7 @@ function AttendanceContent() {
       const data = await res.json();
       setRecords(data.records);
       setStats(data.stats);
+      setStatsByCourse(data.statsByCourse || []);
     } catch (error) {
       console.error("Error fetching attendance:", error);
     } finally {
@@ -268,9 +279,13 @@ function AttendanceContent() {
               <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
                 <div className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                    Attendance %
+                    Cumulative Attendance
                   </h3>
-                  <p className="font-mono text-3xl font-bold text-primary">
+                  <p
+                    className={`font-mono text-3xl font-bold ${
+                      stats.attendancePercentage >= 80 ? "text-success" : "text-destructive"
+                    }`}
+                  >
                     {stats.attendancePercentage}%
                   </p>
                 </div>
@@ -286,10 +301,10 @@ function AttendanceContent() {
 
                 <div className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                    Leaves Available
+                    Hours You Can Still Miss
                   </h3>
                   <p className="font-mono text-3xl font-bold text-warning">
-                    {stats.leavesAvailable}
+                    {stats.leavesAvailable}h
                   </p>
                 </div>
 
@@ -314,6 +329,51 @@ function AttendanceContent() {
                       </>
                     )}
                   </p>
+                </div>
+              </div>
+            )}
+
+            {/* Per-Subject Leave Balance */}
+            {statsByCourse.length > 0 && (
+              <div className="frosted mb-8 overflow-hidden rounded-2xl">
+                <div className="px-6 py-4">
+                  <h2 className="text-xl font-semibold text-foreground">
+                    Per-Subject Leave Balance
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Each subject has its own semester-long hour total (weekly schedule ×
+                    weeks in the semester) and its own 80% requirement.
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-sm font-semibold text-muted-foreground">
+                        <th className="px-6 py-3">Subject</th>
+                        <th className="px-6 py-3">Total Hours (Sem)</th>
+                        <th className="px-6 py-3">Attended</th>
+                        <th className="px-6 py-3">Hours You Can Still Miss</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statsByCourse.map((c) => (
+                        <tr key={c.courseId}>
+                          <td className="px-6 py-4 text-sm font-medium text-foreground">
+                            {c.courseName}
+                          </td>
+                          <td className="px-6 py-4 font-mono text-sm text-foreground">
+                            {c.totalHours}h
+                          </td>
+                          <td className="px-6 py-4 font-mono text-sm text-foreground">
+                            {c.attendedHours}h
+                          </td>
+                          <td className="px-6 py-4 font-mono text-sm font-semibold text-warning">
+                            {c.hoursAvailableToMiss}h
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}

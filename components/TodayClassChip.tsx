@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Ban, Check, X as XIcon } from "lucide-react";
+import { Ban, Check, Pencil, Trash2, X as XIcon } from "lucide-react";
 import { useTapHoldGesture } from "@/lib/hooks/useTapHoldGesture";
 
 export type TodayAttendanceStatus = "PRESENT" | "ABSENT" | "CANCELLED" | null;
@@ -17,6 +17,8 @@ interface TodayClassChipProps {
   onMarkAbsent: () => void;
   onMarkCancelled: () => void;
   onClear: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const STATUS_STYLE: Record<"PRESENT" | "ABSENT" | "CANCELLED", CSSProperties> = {
@@ -49,6 +51,8 @@ export function TodayClassChip({
   onMarkAbsent,
   onMarkCancelled,
   onClear,
+  onEdit,
+  onDelete,
 }: TodayClassChipProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,7 +86,7 @@ export function TodayClassChip({
         }`}
         style={status ? STATUS_STYLE[status] : undefined}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className={`flex items-center gap-2 ${onEdit || onDelete ? "pr-12" : ""}`}>
           <p
             className={`text-sm font-semibold text-foreground ${
               status === "CANCELLED" ? "line-through" : ""
@@ -100,6 +104,37 @@ export function TodayClassChip({
         {room && <p className="text-xs text-muted-foreground">Room: {room}</p>}
         {instructor && <p className="text-xs text-muted-foreground">{instructor}</p>}
       </button>
+
+      {(onEdit || onDelete) && (
+        <div className="absolute right-2 top-2 z-10 flex gap-1">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="text-muted-foreground hover:text-foreground"
+              aria-label="Edit class"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="text-muted-foreground hover:text-destructive"
+              aria-label="Delete class"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {menuOpen && (
         <div className="frosted absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl p-1">

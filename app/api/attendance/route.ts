@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { calculateAttendanceStats } from "@/lib/calculations";
+import { calculateAttendanceStats, calculateAttendanceStatsByCourse } from "@/lib/calculations";
 
 const VALID_STATUSES = ["PRESENT", "ABSENT", "CANCELLED"];
 
@@ -34,11 +34,13 @@ export async function GET(req: NextRequest) {
 
     // Get stats if semesterId provided
     let stats = null;
+    let statsByCourse = null;
     if (semesterId) {
       stats = await calculateAttendanceStats(session.user.id, semesterId);
+      statsByCourse = await calculateAttendanceStatsByCourse(session.user.id, semesterId);
     }
 
-    return NextResponse.json({ records, stats });
+    return NextResponse.json({ records, stats, statsByCourse });
   } catch (error) {
     console.error("Error fetching attendance:", error);
     return NextResponse.json(

@@ -311,14 +311,19 @@ function CalendarContent() {
                         </div>
                         <div className="space-y-1">
                           {dayEvents.slice(0, 2).map((event) => (
-                            <div
+                            <button
                               key={event.id}
-                              className={`truncate text-xs font-medium ${getEventColor(
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditEvent(event);
+                              }}
+                              className={`block w-full truncate text-left text-xs font-medium hover:underline ${getEventColor(
                                 event.eventType
                               )}`}
                             >
                               {event.title}
-                            </div>
+                            </button>
                           ))}
                           {dayEvents.length > 2 && (
                             <div className="text-xs text-muted-foreground">
@@ -443,8 +448,8 @@ function CalendarContent() {
                         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
                     )
                     .map((event) => (
-                      <div key={event.id} className="group frosted-inset relative rounded-xl p-3">
-                        <div className="absolute right-2 top-2 hidden gap-1 group-hover:flex">
+                      <div key={event.id} className="frosted-inset relative rounded-xl p-3">
+                        <div className="absolute right-2 top-2 flex gap-1">
                           <button
                             type="button"
                             onClick={() => startEditEvent(event)}
