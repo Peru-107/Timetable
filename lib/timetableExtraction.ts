@@ -92,9 +92,12 @@ const SHARED_RULES =
   "different subjects shown side by side in the same cell or column) because they cover an entire cohort, " +
   "not one student. Only extract sessions for the specific subjects the student tells you they take - ignore " +
   "every other subject shown on the sheet, even if it appears in the same time slot. Match subject codes " +
-  "loosely: ignore differences in spacing, case, and punctuation (e.g. 'IB3' matches 'IB 3'). If the sheet " +
-  "includes a legend or key mapping short codes to full subject names, use it to fill in full names; " +
-  "otherwise reuse the code as the name. Convert all times to 24-hour HH:MM format.";
+  "loosely only for spacing, case, and punctuation (e.g. 'IB3' matches 'IB 3') - never for the letters or " +
+  "digits themselves. Codes that share a prefix but end differently are different subjects and must be kept " +
+  "separate and never merged (e.g. 'IF1' and 'IF2' are two distinct subjects, not the same one written two " +
+  "ways) - read the trailing number/letter of every code carefully, especially when subjects share a common " +
+  "prefix. If the sheet includes a legend or key mapping short codes to full subject names, use it to fill in " +
+  "full names; otherwise reuse the code as the name. Convert all times to 24-hour HH:MM format.";
 
 const SYSTEM_INSTRUCTION_VISION =
   "You read university class timetable images or PDFs and extract a student's personal schedule from them. " +
@@ -158,6 +161,31 @@ async function callGemini(
  * cell in that layout - that's why vision is tried first, with OCR text
  * only used as a last-resort fallback if every vision model is overloaded.
  */
+/**
+ * Flags subject codes that share a prefix and differ only by a trailing
+ * number/letter (e.g. "IF1" vs "IF2") so the model can be told, for this
+ * specific upload, exactly which codes are easy to misread into each other -
+ * a targeted nudge on top of the general "don't merge similar codes" rule.
+ */
+export function findSimilarCodePairs(subjectCodes: string[]): Array<[string, string]> {
+  const normalize = (s: string) => s.replace(/[\s\-_.]/g, "").toUpperCase();
+  const prefixOf = (s: string) => normalize(s).replace(/\d+$/, "");
+
+  const pairs: Array<[string, string]> = [];
+  for (let i = 0; i < subjectCodes.length; i++) {
+    for (let j = i + 1; j < subjectCodes.length; j++) {
+      const a = subjectCodes[i];
+      const b = subjectCodes[j];
+      if (normalize(a) === normalize(b)) continue;
+      const prefix = prefixOf(a);
+      if (prefix && prefix === prefixOf(b)) {
+        pairs.push([a, b]);
+      }
+    }
+  }
+  return pairs;
+}
+
 export async function extractTimetable(
   fileBuffer: Buffer,
   mimeType: string,
@@ -166,6 +194,13 @@ export async function extractTimetable(
   const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const base64Data = fileBuffer.toString("base64");
   const subjectsLine = subjectCodes.join(", ");
+
+  const similarPairs = findSimilarCodePairs(subjectCodes);
+  const similarPairsWarning =
+    similarPairs.length > 0
+      ? ` These codes look alike but are different subjects - read the ending carefully and never mix them ` +
+        `up: ${similarPairs.map(([a, b]) => `'${a}' vs '${b}'`).join(", ")}.`
+      : "";
 
   const visionContents = [
     {
@@ -176,7 +211,7 @@ export async function extractTimetable(
           text:
             `This is my class timetable. My subjects are: ${subjectsLine}. Extract every class session for ` +
             "exactly these subjects, across every day shown, with their day, start time, end time, room, and " +
-            "instructor where available. Leave room or instructor as an empty string if not shown.",
+            `instructor where available. Leave room or instructor as an empty string if not shown.${similarPairsWarning}`,
         },
       ],
     },
@@ -203,7 +238,7 @@ export async function extractTimetable(
           {
             text:
               `This is OCR text extracted from a photo of my class timetable. My subjects are: ${subjectsLine}. ` +
-              `Raw OCR text:\n\n${ocrText}`,
+              `${similarPairsWarning ? similarPairsWarning.trim() + " " : ""}Raw OCR text:\n\n${ocrText}`,
           },
         ],
       },
