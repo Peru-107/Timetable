@@ -20,6 +20,7 @@ interface TimetableEntry {
 interface AttendanceRecord {
   id: string;
   courseId: string;
+  timetableEntryId: string | null;
   date: string;
   status: "PRESENT" | "ABSENT" | "CANCELLED";
 }
@@ -42,7 +43,18 @@ export function DailyAttendanceCard({
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
-  const [attendanceByCourse, setAttendanceByCourse] = useState<Record<string, AttendanceRecord>>({});
+  // Records tagged with the specific timetable entry they came from, keyed
+  // by that entry's id - and a courseId-keyed fallback for records with no
+  // entry tag (manual entries, or ones created before per-entry tracking
+  // existed). This split is what lets two same-day sessions of one course
+  // show independent status instead of colliding on courseId alone.
+  const [recordsByEntry, setRecordsByEntry] = useState<Record<string, AttendanceRecord>>({});
+  const [recordsByCourseFallback, setRecordsByCourseFallback] = useState<
+    Record<string, AttendanceRecord>
+  >({});
+
+  const getRecordForEntry = (entry: TimetableEntry) =>
+    recordsByEntry[entry.id] || recordsByCourseFallback[entry.courseId];
 
   const today = startOfDay(new Date());
   const isToday = isSameDay(selectedDate, today);
@@ -64,13 +76,18 @@ export function DailyAttendanceCard({
       .then((res) => res.json())
       .then((data) => {
         const records: AttendanceRecord[] = data.records || [];
-        const map: Record<string, AttendanceRecord> = {};
+        const byEntry: Record<string, AttendanceRecord> = {};
+        const byCourseFallback: Record<string, AttendanceRecord> = {};
         for (const record of records) {
-          if (isSameDay(new Date(record.date), selectedDate)) {
-            map[record.courseId] = record;
+          if (!isSameDay(new Date(record.date), selectedDate)) continue;
+          if (record.timetableEntryId) {
+            byEntry[record.timetableEntryId] = record;
+          } else {
+            byCourseFallback[record.courseId] = record;
           }
         }
-        setAttendanceByCourse(map);
+        setRecordsByEntry(byEntry);
+        setRecordsByCourseFallback(byCourseFallback);
       })
       .catch((error) => console.error("Error fetching attendance:", error));
   }, [semesterId, selectedDate]);
@@ -85,14 +102,24 @@ export function DailyAttendanceCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: entry.courseId,
+          timetableEntryId: entry.id,
           date: selectedDate.toISOString(),
           status,
           hoursDuration: computeHoursFromTimes(entry.startTime, entry.endTime),
         }),
       });
       if (res.ok) {
-        const record = await res.json();
-        setAttendanceByCourse((prev) => ({ ...prev, [entry.courseId]: record }));
+        const record: AttendanceRecord = await res.json();
+        setRecordsByEntry((prev) => ({ ...prev, [entry.id]: record }));
+        // The server may have adopted a previously-untagged same-day record
+        // for this course - drop it from the fallback so it isn't also
+        // shown for a different entry of the same course.
+        setRecordsByCourseFallback((prev) => {
+          if (!(entry.courseId in prev)) return prev;
+          const next = { ...prev };
+          delete next[entry.courseId];
+          return next;
+        });
         onChange?.();
       }
     } catch (error) {
@@ -100,15 +127,22 @@ export function DailyAttendanceCard({
     }
   };
 
-  const clearAttendance = async (courseId: string) => {
-    const record = attendanceByCourse[courseId];
+  const clearAttendance = async (entry: TimetableEntry) => {
+    const record = getRecordForEntry(entry);
     if (!record) return;
     try {
       const res = await fetch(`/api/attendance?id=${record.id}`, { method: "DELETE" });
       if (res.ok) {
-        setAttendanceByCourse((prev) => {
+        setRecordsByEntry((prev) => {
+          if (!(entry.id in prev)) return prev;
           const next = { ...prev };
-          delete next[courseId];
+          delete next[entry.id];
+          return next;
+        });
+        setRecordsByCourseFallback((prev) => {
+          if (!(entry.courseId in prev)) return prev;
+          const next = { ...prev };
+          delete next[entry.courseId];
           return next;
         });
         onChange?.();
@@ -200,13 +234,11 @@ export function DailyAttendanceCard({
               endTime={entry.endTime}
               room={entry.room}
               instructor={entry.instructor}
-              status={
-                (attendanceByCourse[entry.courseId]?.status as TodayAttendanceStatus) || null
-              }
+              status={(getRecordForEntry(entry)?.status as TodayAttendanceStatus) || null}
               onMarkPresent={() => markAttendance(entry, "PRESENT")}
               onMarkAbsent={() => markAttendance(entry, "ABSENT")}
               onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
-              onClear={() => clearAttendance(entry.courseId)}
+              onClear={() => clearAttendance(entry)}
               onEdit={editEntry}
               onDelete={() => deleteEntry(entry.id)}
             />

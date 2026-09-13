@@ -41,6 +41,7 @@ interface Course {
 interface AttendanceRecord {
   id: string;
   courseId: string;
+  timetableEntryId: string | null;
   date: string;
   status: "PRESENT" | "ABSENT" | "CANCELLED";
 }
@@ -124,7 +125,16 @@ function TimetableContent() {
   const [subjectsInput, setSubjectsInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
-  const [todayAttendance, setTodayAttendance] = useState<Record<string, AttendanceRecord>>({});
+  // Records tagged with the specific timetable entry they came from, keyed
+  // by that entry's id - and a courseId-keyed fallback for records with no
+  // entry tag (manual entries, or ones created before per-entry tracking
+  // existed). This split is what lets two same-day sessions of one course
+  // show independent status instead of colliding on courseId alone.
+  const [todayByEntry, setTodayByEntry] = useState<Record<string, AttendanceRecord>>({});
+  const [todayByCourseFallback, setTodayByCourseFallback] = useState<Record<string, AttendanceRecord>>({});
+
+  const getTodayRecordForEntry = (entry: TimetableEntry) =>
+    todayByEntry[entry.id] || todayByCourseFallback[entry.courseId];
 
   const todayDayIndex = new Date().getDay();
 
@@ -175,14 +185,19 @@ function TimetableContent() {
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23, 59, 59, 999);
 
-      const map: Record<string, AttendanceRecord> = {};
+      const byEntry: Record<string, AttendanceRecord> = {};
+      const byCourseFallback: Record<string, AttendanceRecord> = {};
       for (const record of records) {
         const recordDate = new Date(record.date);
-        if (recordDate >= dayStart && recordDate <= dayEnd) {
-          map[record.courseId] = record;
+        if (recordDate < dayStart || recordDate > dayEnd) continue;
+        if (record.timetableEntryId) {
+          byEntry[record.timetableEntryId] = record;
+        } else {
+          byCourseFallback[record.courseId] = record;
         }
       }
-      setTodayAttendance(map);
+      setTodayByEntry(byEntry);
+      setTodayByCourseFallback(byCourseFallback);
     } catch (error) {
       console.error("Error fetching attendance:", error);
     }
@@ -328,9 +343,11 @@ function TimetableContent() {
         body: JSON.stringify({ id, name: editCourseName.trim(), creditHours }),
       });
       if (res.ok) {
-        // Replace this course's schedule with the edited rows. Attendance
-        // records key off courseId + date, not a specific entry, so this
-        // never touches attendance history.
+        // Replace this course's schedule with the edited rows. Deleting the
+        // old entries only clears their attendance records' entry tag
+        // (SetNull), it never deletes the records, so this never touches
+        // attendance history - marking the course again on a future day
+        // just re-tags against whichever new entry matches.
         const currentEntries = timetableEntries.filter((e) => e.courseId === id);
         for (const entry of currentEntries) {
           await fetch(`/api/timetable?id=${entry.id}`, { method: "DELETE" });
@@ -476,29 +493,46 @@ function TimetableContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           courseId: entry.courseId,
+          timetableEntryId: entry.id,
           date: startOfDay(new Date()).toISOString(),
           status: entryStatus,
           hoursDuration: computeHoursFromTimes(entry.startTime, entry.endTime),
         }),
       });
       if (res.ok) {
-        const record = await res.json();
-        setTodayAttendance((prev) => ({ ...prev, [entry.courseId]: record }));
+        const record: AttendanceRecord = await res.json();
+        setTodayByEntry((prev) => ({ ...prev, [entry.id]: record }));
+        // The server may have adopted a previously-untagged same-day record
+        // for this course - drop it from the fallback so it isn't also
+        // shown for a different entry of the same course.
+        setTodayByCourseFallback((prev) => {
+          if (!(entry.courseId in prev)) return prev;
+          const next = { ...prev };
+          delete next[entry.courseId];
+          return next;
+        });
       }
     } catch (error) {
       console.error("Error marking attendance:", error);
     }
   };
 
-  const clearAttendance = async (courseId: string) => {
-    const record = todayAttendance[courseId];
+  const clearAttendance = async (entry: TimetableEntry) => {
+    const record = getTodayRecordForEntry(entry);
     if (!record) return;
     try {
       const res = await fetch(`/api/attendance?id=${record.id}`, { method: "DELETE" });
       if (res.ok) {
-        setTodayAttendance((prev) => {
+        setTodayByEntry((prev) => {
+          if (!(entry.id in prev)) return prev;
           const next = { ...prev };
-          delete next[courseId];
+          delete next[entry.id];
+          return next;
+        });
+        setTodayByCourseFallback((prev) => {
+          if (!(entry.courseId in prev)) return prev;
+          const next = { ...prev };
+          delete next[entry.courseId];
           return next;
         });
       }
@@ -998,13 +1032,13 @@ function TimetableContent() {
                           room={entry.room}
                           instructor={entry.instructor}
                           status={
-                            (todayAttendance[entry.courseId]?.status as TodayAttendanceStatus) ||
+                            (getTodayRecordForEntry(entry)?.status as TodayAttendanceStatus) ||
                             null
                           }
                           onMarkPresent={() => markAttendance(entry, "PRESENT")}
                           onMarkAbsent={() => markAttendance(entry, "ABSENT")}
                           onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
-                          onClear={() => clearAttendance(entry.courseId)}
+                          onClear={() => clearAttendance(entry)}
                           onEdit={() => startEditEntry(entry)}
                           onDelete={() => handleDeleteEntry(entry.id)}
                         />

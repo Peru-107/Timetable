@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { courseId, date, status, hoursDuration, notes } = await req.json();
+    const { courseId, timetableEntryId, date, status, hoursDuration, notes } = await req.json();
 
     if (!VALID_STATUSES.includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
@@ -79,27 +79,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Marking the same class on the same day again updates the existing
-    // record instead of creating a duplicate (this is how tap-to-mark on
-    // the Timetable page behaves, and it makes re-submitting the manual
-    // form for the same day safe too).
-    const existing = await prisma.attendanceRecord.findFirst({
-      where: {
-        userId: session.user.id,
-        courseId,
-        date: { gte: dayStart, lte: dayEnd },
-      },
-    });
+    // Marking the same class session again updates its existing record
+    // instead of creating a duplicate. A course can meet more than once on
+    // the same day (e.g. a lecture and a tutorial), so identity has to
+    // include which timetable entry the mark came from - courseId + date
+    // alone would make the second session's mark overwrite the first's
+    // instead of recording both.
+    let existing = timetableEntryId
+      ? await prisma.attendanceRecord.findFirst({
+          where: {
+            userId: session.user.id,
+            courseId,
+            date: { gte: dayStart, lte: dayEnd },
+            timetableEntryId,
+          },
+        })
+      : await prisma.attendanceRecord.findFirst({
+          where: {
+            userId: session.user.id,
+            courseId,
+            date: { gte: dayStart, lte: dayEnd },
+          },
+        });
+
+    if (!existing && timetableEntryId) {
+      // No record tagged for this exact slot. If this course doesn't
+      // already have a record for a DIFFERENT slot today, treat any
+      // untagged same-day record as this slot instead of duplicating it -
+      // this covers manual entries and records created before per-slot
+      // tracking existed. A record already tagged for another slot means
+      // the course genuinely meets twice today, so leave it alone and
+      // create a new one below.
+      const sameDayForCourse = await prisma.attendanceRecord.findFirst({
+        where: { userId: session.user.id, courseId, date: { gte: dayStart, lte: dayEnd } },
+      });
+      if (sameDayForCourse && sameDayForCourse.timetableEntryId === null) {
+        existing = sameDayForCourse;
+      }
+    }
 
     const record = existing
       ? await prisma.attendanceRecord.update({
           where: { id: existing.id },
-          data: { status, hoursDuration, notes },
+          data: { status, hoursDuration, notes, timetableEntryId: timetableEntryId ?? null },
         })
       : await prisma.attendanceRecord.create({
           data: {
             userId: session.user.id,
             courseId,
+            timetableEntryId: timetableEntryId ?? null,
             date: targetDate,
             status,
             hoursDuration,

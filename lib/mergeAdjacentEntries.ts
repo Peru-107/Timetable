@@ -4,9 +4,9 @@ import { planAdjacentMerge } from "./timetableMerge";
 /**
  * Collapses back-to-back timetable entries for one course into continuous
  * sessions (see planAdjacentMerge). Safe to call after any operation that
- * could leave a course with adjacent entries - attendance records key off
- * courseId + date, not a specific entry, so merging/deleting entries never
- * touches existing attendance history.
+ * could leave a course with adjacent entries - deleting a merged-away entry
+ * only clears its attendance records' entry tag (SetNull), it never deletes
+ * the records themselves, so merging never touches attendance history.
  */
 export async function mergeAdjacentEntriesForCourse(courseId: string): Promise<number> {
   const entries = await prisma.timetableEntry.findMany({ where: { courseId } });
