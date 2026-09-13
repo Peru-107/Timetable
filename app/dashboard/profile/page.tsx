@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { useTheme, type ThemePreference } from "@/components/ThemeProvider";
-import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone } from "lucide-react";
+import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2 } from "lucide-react";
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
   { value: "auto", label: "Auto", icon: MonitorSmartphone },
@@ -42,6 +42,11 @@ function ProfileContent() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [passwordResult, setPasswordResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -122,6 +127,38 @@ function ProfileContent() {
       setPasswordResult({ type: "error", message: "Network error. Please try again." });
     } finally {
       setIsSavingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      !confirm(
+        "This permanently deletes your account and everything in it - semesters, courses, timetable, attendance records, grades, and calendar events. This cannot be undone. Continue?"
+      )
+    ) {
+      return;
+    }
+
+    setDeleteError("");
+    setIsDeleting(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      if (res.ok) {
+        await signOut({ callbackUrl: "/" });
+      } else {
+        const data = await res.json();
+        setDeleteError(data.error || "Could not delete your account");
+      }
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      setDeleteError("Network error. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -267,6 +304,60 @@ function ProfileContent() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="frosted rounded-2xl border border-destructive/40 p-6">
+            <h2 className="mb-1 text-xl font-semibold text-destructive">Danger Zone</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Permanently delete your account and everything in it - semesters, courses,
+              timetable, attendance records, grades, and calendar events. This cannot be
+              undone.
+            </p>
+
+            {!showDeleteConfirm ? (
+              <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+                <Trash2 className="h-4 w-4" /> Delete My Account
+              </Button>
+            ) : (
+              <form onSubmit={handleDeleteAccount} className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    Confirm your password
+                  </label>
+                  <Input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {deleteError && (
+                  <div className="frosted-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {deleteError}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button type="submit" variant="destructive" disabled={isDeleting}>
+                    {isDeleting ? "Deleting..." : "Permanently Delete Account"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowDeleteConfirm(false);
+                      setDeletePassword("");
+                      setDeleteError("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>

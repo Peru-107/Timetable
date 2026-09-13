@@ -93,3 +93,54 @@ export async function PATCH(req: NextRequest) {
     );
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { password } = await req.json();
+    if (!password) {
+      return NextResponse.json(
+        { error: "Enter your password to confirm account deletion" },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
+    }
+
+    // TimetableUpload rows track a semesterId but have no foreign key to
+    // Semester, so they wouldn't be cleaned up by the cascade below.
+    const semesters = await prisma.semester.findMany({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+    if (semesters.length > 0) {
+      await prisma.timetableUpload.deleteMany({
+        where: { semesterId: { in: semesters.map((s) => s.id) } },
+      });
+    }
+
+    // Cascades to semesters, courses, timetable entries, attendance
+    // records, grades, and calendar events (see schema onDelete: Cascade).
+    await prisma.user.delete({ where: { id: session.user.id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting account:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
