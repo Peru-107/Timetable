@@ -27,13 +27,32 @@ interface Semester {
   courses: Array<any>;
 }
 
+interface AttendanceStats {
+  totalHours: number;
+  attendedHours: number;
+  attendancePercentage: number;
+  requiredHours: number;
+  leavesAvailable: number;
+  leavesUsed: number;
+}
+
+interface CGPAData {
+  courses: Array<{
+    name: string;
+    grade: number;
+    creditHours: number;
+    gradePoints: number;
+  }>;
+  cgpa: number;
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [activeSemester, setActiveSemester] = useState<Semester | null>(null);
-  const [attendanceStats, setAttendanceStats] = useState(null);
-  const [cgpaData, setCGPAData] = useState(null);
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats | null>(null);
+  const [cgpaData, setCGPAData] = useState<CGPAData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
