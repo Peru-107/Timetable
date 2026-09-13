@@ -10,7 +10,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, Upload } from "lucide-react";
+import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 interface TimetableEntry {
   id: string;
@@ -51,6 +51,10 @@ function TimetableContent() {
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [subjectsInput, setSubjectsInput] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -119,23 +123,43 @@ function TimetableContent() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!subjectsInput.trim()) {
+      setUploadResult({
+        type: "error",
+        message: "List your subjects above first, so we know what to look for.",
+      });
+      e.target.value = "";
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("semesterId", semesterId || "");
+    formData.append("subjects", subjectsInput);
+
+    setIsUploading(true);
+    setUploadResult(null);
 
     try {
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
+      const data = await res.json();
 
       if (res.ok) {
-        const data = await res.json();
-        alert(`${data.message}\n\n${data.status}`);
+        setUploadResult({ type: "success", message: data.message });
+        fetchTimetable();
+        fetchCourses();
+      } else {
+        setUploadResult({ type: "error", message: data.error || "Could not process the file" });
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-      alert("Error uploading file");
+      setUploadResult({ type: "error", message: "Error uploading file" });
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -167,19 +191,23 @@ function TimetableContent() {
                   </>
                 )}
               </Button>
-              <label>
-                <Button variant="outline" asChild>
-                  <span>
-                    <Upload className="h-4 w-4" /> Upload (PDF/JPG/PNG)
-                  </span>
-                </Button>
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={handleFileUpload}
-                  style={{ display: "none" }}
-                />
-              </label>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowUpload(!showUpload);
+                  setUploadResult(null);
+                }}
+              >
+                {showUpload ? (
+                  <>
+                    <X className="h-4 w-4" /> Cancel
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" /> Upload Timetable
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </div>
@@ -188,6 +216,73 @@ function TimetableContent() {
           <NoSemesterState />
         ) : (
           <>
+            {/* Upload & Auto-Extract */}
+            {showUpload && (
+              <div className="neu-raised mb-8 rounded-2xl p-6">
+                <h2 className="mb-2 text-xl font-semibold text-foreground">
+                  Upload Timetable (PDF/JPG/PNG)
+                </h2>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  List your own subjects below, then upload a photo or PDF of your
+                  full class timetable. We&apos;ll read it and add only your classes
+                  to your schedule below.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Your subjects (comma-separated)
+                    </label>
+                    <Input
+                      value={subjectsInput}
+                      onChange={(e) => setSubjectsInput(e.target.value)}
+                      placeholder="e.g. BC, MTI, HRM, IB3, IA3, IF1, BM1"
+                      disabled={isUploading}
+                    />
+                  </div>
+
+                  <label>
+                    <span
+                      className={`neu-pressable neu-raised inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-foreground ${
+                        isUploading ? "pointer-events-none opacity-50" : ""
+                      }`}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" /> Reading timetable...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4" /> Choose file
+                        </>
+                      )}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+
+                  {uploadResult && (
+                    <div
+                      className={`neu-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
+                        uploadResult.type === "success" ? "text-success" : "text-destructive"
+                      }`}
+                    >
+                      {uploadResult.type === "success" ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                      )}
+                      {uploadResult.message}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Form to Add Entry */}
             {showForm && (
               <div className="neu-raised mb-8 rounded-2xl p-6">

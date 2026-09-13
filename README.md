@@ -7,7 +7,7 @@ A comprehensive web application to manage your academic life with timetable trac
 ### 🎓 Core Features Implemented
 
 - **📅 Timetable Management**
-  - Upload timetables from PDF, JPEG, or PNG files
+  - Upload a timetable PDF/JPEG/PNG and list your own subjects — Claude reads the sheet and adds only your classes, even when the source timetable lists parallel elective sections for the whole cohort
   - Manually add classes with day, time, room, and instructor details
   - View weekly timetable layout
   - Support for multiple semesters

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { extractTimetable } from "@/lib/timetableExtraction";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,6 +14,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const semesterId = formData.get("semesterId") as string;
+    const subjectsRaw = formData.get("subjects") as string | null;
 
     if (!file || !semesterId) {
       return NextResponse.json(
@@ -21,7 +23,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate file type
+    const subjectCodes = (subjectsRaw || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (subjectCodes.length === 0) {
+      return NextResponse.json(
+        { error: "List at least one subject to extract" },
+        { status: 400 }
+      );
+    }
+
+    const semester = await prisma.semester.findFirst({
+      where: { id: semesterId, userId: session.user.id },
+    });
+    if (!semester) {
+      return NextResponse.json({ error: "Semester not found" }, { status: 404 });
+    }
+
     const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
@@ -30,32 +50,108 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // In production, you'd upload to cloud storage (Vercel Blob, S3, etc.)
-    // For now, we'll just store the file info in the database
     const fileType = file.type === "application/pdf" ? "pdf" : "image";
     const upload = await prisma.timetableUpload.create({
       data: {
         semesterId,
-        uploadUrl: `/uploads/${file.name}`,
-        fileType: fileType,
+        uploadUrl: `upload:${file.name}`,
+        fileType,
         status: "processing",
       },
     });
 
-    // Note: In production, you would:
-    // 1. Upload the file to cloud storage
-    // 2. Queue an OCR job
-    // 3. Process the OCR result to extract timetable data
-    // 4. Update the database with extracted timetable entries
+    try {
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+      const extraction = await extractTimetable(fileBuffer, file.type, subjectCodes);
 
-    return NextResponse.json(
-      {
-        message: "File uploaded successfully",
-        uploadId: upload.id,
-        status: "File received. Manual entry is needed to create timetable.",
-      },
-      { status: 201 }
-    );
+      const existingCourses = await prisma.course.findMany({
+        where: { semesterId },
+      });
+
+      const codeToCourseId = new Map<string, string>();
+      for (const parsedCourse of extraction.courses) {
+        const normalizedCode = parsedCourse.code.trim().toLowerCase();
+        const match = existingCourses.find(
+          (c) =>
+            c.name.trim().toLowerCase() === parsedCourse.name.trim().toLowerCase() ||
+            (c.code && c.code.trim().toLowerCase() === normalizedCode)
+        );
+
+        if (match) {
+          codeToCourseId.set(normalizedCode, match.id);
+        } else {
+          const created = await prisma.course.create({
+            data: {
+              name: parsedCourse.name || parsedCourse.code,
+              code: parsedCourse.code,
+              semesterId,
+            },
+          });
+          existingCourses.push(created);
+          codeToCourseId.set(normalizedCode, created.id);
+        }
+      }
+
+      const existingEntries = await prisma.timetableEntry.findMany({
+        where: { semesterId },
+      });
+
+      let createdCount = 0;
+      for (const entry of extraction.entries) {
+        const courseId = codeToCourseId.get(entry.subjectCode.trim().toLowerCase());
+        if (!courseId) continue;
+
+        const isDuplicate = existingEntries.some(
+          (e) =>
+            e.courseId === courseId &&
+            e.dayOfWeek === entry.dayOfWeek &&
+            e.startTime === entry.startTime &&
+            e.endTime === entry.endTime
+        );
+        if (isDuplicate) continue;
+
+        await prisma.timetableEntry.create({
+          data: {
+            courseId,
+            semesterId,
+            dayOfWeek: entry.dayOfWeek,
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+            room: entry.room,
+            instructor: entry.instructor,
+          },
+        });
+        createdCount++;
+      }
+
+      await prisma.timetableUpload.update({
+        where: { id: upload.id },
+        data: {
+          status: "completed",
+          extractedText: JSON.stringify(extraction),
+        },
+      });
+
+      return NextResponse.json(
+        {
+          message: `Added ${createdCount} class${createdCount === 1 ? "" : "es"} to your timetable`,
+          uploadId: upload.id,
+          entriesFound: extraction.entries.length,
+          entriesCreated: createdCount,
+        },
+        { status: 201 }
+      );
+    } catch (extractionError) {
+      console.error("Timetable extraction error:", extractionError);
+      await prisma.timetableUpload.update({
+        where: { id: upload.id },
+        data: { status: "failed" },
+      });
+      return NextResponse.json(
+        { error: "Could not read a schedule from this file. Try a clearer scan or add entries manually." },
+        { status: 422 }
+      );
+    }
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json(
