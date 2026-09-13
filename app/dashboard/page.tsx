@@ -267,18 +267,12 @@ export default function DashboardPage() {
                       Attendance
                     </h3>
                   </div>
-                  <div
-                    className={`mb-2 text-4xl font-bold ${
-                      attendanceStats.attendancePercentage >= 80 ? "text-success" : "text-destructive"
-                    }`}
-                  >
+                  <div className="text-gradient-brand mb-2 font-display text-4xl font-bold">
                     {attendanceStats.attendancePercentage}%
                   </div>
                   <div className="frosted-inset mb-4 h-2 overflow-hidden rounded-full">
                     <div
-                      className={`h-full rounded-full ${
-                        attendanceStats.attendancePercentage >= 80 ? "bg-success" : "bg-destructive"
-                      }`}
+                      className="bg-gradient-brand h-full rounded-full"
                       style={{
                         width: `${Math.min(100, attendanceStats.attendancePercentage)}%`,
                       }}
@@ -305,7 +299,7 @@ export default function DashboardPage() {
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">CGPA</h3>
                   </div>
-                  <div className="mb-2 text-4xl font-bold text-success">
+                  <div className="mb-2 font-display text-4xl font-bold text-success">
                     {cgpaData.cgpa}/4.0
                   </div>
                   <p className="text-muted-foreground">
@@ -323,7 +317,7 @@ export default function DashboardPage() {
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">Courses</h3>
                   </div>
-                  <div className="mb-2 text-4xl font-bold text-warning">
+                  <div className="mb-2 font-display text-4xl font-bold text-warning">
                     {activeSemester.courses.length}
                   </div>
                   <p className="text-muted-foreground">

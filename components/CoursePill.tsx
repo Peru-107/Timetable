@@ -24,7 +24,7 @@ export function CoursePill({ name, creditHours, active, onEdit, onDelete }: Cour
 
   return (
     <span
-      className={`frosted-inset flex items-center gap-2 rounded-full py-1 pl-3 pr-1.5 text-sm font-medium text-foreground ${
+      className={`frosted-inset flex items-center gap-2.5 rounded-full py-1.5 pl-4 pr-1.5 text-sm font-medium text-foreground ${
         active ? "ring-2 ring-primary" : ""
       }`}
     >
@@ -34,12 +34,12 @@ export function CoursePill({ name, creditHours, active, onEdit, onDelete }: Cour
         ref={menuButtonRef}
         type="button"
         onClick={() => setMenuOpen((v) => !v)}
-        className="rounded-md p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground"
+        className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-black/5 hover:text-foreground"
         aria-label={`More options for ${name}`}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
       >
-        <MoreVertical className="h-3.5 w-3.5" />
+        <MoreVertical className="h-4 w-4" />
       </button>
 
       <ChipMenuPortal

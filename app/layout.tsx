@@ -1,10 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, JetBrains_Mono } from "next/font/google";
+import { DM_Sans, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
+// Body/UI text: Inter is built for dense-interface legibility, unlike DM
+// Sans's small-size-optimized, low-stroke-contrast letterforms which read
+// thin at regular text sizes.
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+// Reserved for large display numbers and hero headings only (see
+// `.font-display` in globals.css) - DM Sans's personality is worth keeping
+// there, it's only regular body text where it reads thin.
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
@@ -43,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>

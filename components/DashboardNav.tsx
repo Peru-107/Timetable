@@ -41,7 +41,7 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
     <>
       <nav className="frosted sticky top-4 z-10 mx-4 mb-8 rounded-2xl px-4 py-3 sm:mx-6 sm:px-6 lg:mx-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-          <Link href="/dashboard" className="text-lg font-bold text-foreground">
+          <Link href="/dashboard" className="font-display text-lg font-bold text-foreground">
             Timetable Tracker
           </Link>
 

@@ -5,9 +5,9 @@
   --foreground: #221f1b;
   --card: #f6f4ef;
   --card-foreground: #221f1b;
-  --primary: #b5762c;
+  --primary: #c9843a;
   --primary-foreground: #ffffff;
-  --secondary: #4d6a80;
+  --secondary: #2f8f82;
   --secondary-foreground: #ffffff;
   --muted: #efece5;
   --muted-foreground: #82786a;
@@ -21,7 +21,7 @@
   --warning-foreground: #ffffff;
   --border: #e0dbcf;
   --input: #e0dbcf;
-  --ring: #b5762c;
+  --ring: #c9843a;
   --radius: 1.125rem;
 
   --neu-light: #fdfbf8;
@@ -35,6 +35,8 @@
   --bg-stop-1: #f8f6f1;
   --bg-stop-2: #efeade;
   --bg-stop-3: #e9e2d3;
+
+  --aurora-opacity: 0.16;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,9 +45,9 @@
     --foreground: #f2ece3;
     --card: #16130f;
     --card-foreground: #f2ece3;
-    --primary: #d99a4a;
+    --primary: #e0a15a;
     --primary-foreground: #221a0e;
-    --secondary: #8fb3c9;
+    --secondary: #3aa89a;
     --secondary-foreground: #10222c;
     --muted: #201b16;
     --muted-foreground: #b0a493;
@@ -59,7 +61,7 @@
     --warning-foreground: #2a1608;
     --border: #2a241d;
     --input: #2a241d;
-    --ring: #d99a4a;
+    --ring: #e0a15a;
 
     --neu-light: #2c2620;
     --neu-dark: #0e0c09;
@@ -72,6 +74,8 @@
     --bg-stop-1: #1c1712;
     --bg-stop-2: #14110d;
     --bg-stop-3: #100d0a;
+
+    --aurora-opacity: 0.1;
   }
 }
 
@@ -80,9 +84,9 @@
   --foreground: #f2ece3;
   --card: #16130f;
   --card-foreground: #f2ece3;
-  --primary: #d99a4a;
+  --primary: #e0a15a;
   --primary-foreground: #221a0e;
-  --secondary: #8fb3c9;
+  --secondary: #3aa89a;
   --secondary-foreground: #10222c;
   --muted: #201b16;
   --muted-foreground: #b0a493;
@@ -96,7 +100,7 @@
   --warning-foreground: #2a1608;
   --border: #2a241d;
   --input: #2a241d;
-  --ring: #d99a4a;
+  --ring: #e0a15a;
 
   --neu-light: #2c2620;
   --neu-dark: #0e0c09;
@@ -109,6 +113,8 @@
   --bg-stop-1: #1c1712;
   --bg-stop-2: #14110d;
   --bg-stop-3: #100d0a;
+
+  --aurora-opacity: 0.1;
 }
 
 @theme inline {
@@ -136,7 +142,8 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 0.375rem);
   --radius-sm: calc(var(--radius) - 0.625rem);
-  --font-sans: var(--font-dm-sans);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-dm-sans);
   --font-mono: var(--font-jetbrains-mono);
 }
 
@@ -210,4 +217,52 @@ body {
 .neu-pressable:active {
   box-shadow: inset 3px 3px 7px var(--neu-dark), inset -3px -3px 7px var(--neu-light);
   transform: translateY(1px);
+}
+
+/* ---- Quiet Aurora: a slow, low-opacity conic wash confined to the top of
+   the viewport - a background detail, not a feature, so it never competes
+   with dense data screens further down the page ---- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -15% -30% auto -30%;
+  height: 480px;
+  z-index: -1;
+  background: conic-gradient(
+    from 0deg,
+    var(--primary),
+    transparent 28%,
+    var(--secondary),
+    transparent 62%,
+    var(--primary)
+  );
+  filter: blur(90px);
+  opacity: var(--aurora-opacity);
+  animation: aurora-spin 40s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes aurora-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+}
+
+/* ---- Duotone gradient, used sparingly (one hero number per screen, not
+   every heading) so it reads as an accent rather than decoration ---- */
+.text-gradient-brand {
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.bg-gradient-brand {
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
 }

@@ -1005,61 +1005,81 @@ function TimetableContent() {
               </div>
             )}
 
-            {/* Timetable Grid */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-7">
-              {DAYS.map((day, dayIndex) => (
-                <div key={dayIndex} className="frosted rounded-2xl p-4">
-                  <h3 className="mb-4 text-center font-semibold text-foreground">
-                    {day}
-                    {dayIndex === todayDayIndex && (
-                      <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                        Today
-                      </span>
-                    )}
-                  </h3>
-                  <div className="space-y-2">
-                    {entriesByDay[dayIndex].length === 0 ? (
-                      <p className="text-center text-sm text-muted-foreground">
-                        No classes
-                      </p>
-                    ) : dayIndex === todayDayIndex ? (
-                      entriesByDay[dayIndex].map((entry) => (
-                        <TodayClassChip
-                          key={entry.id}
-                          courseName={entry.course.name}
-                          startTime={entry.startTime}
-                          endTime={entry.endTime}
-                          room={entry.room}
-                          instructor={entry.instructor}
-                          status={
-                            (getTodayRecordForEntry(entry)?.status as TodayAttendanceStatus) ||
-                            null
-                          }
-                          onMarkPresent={() => markAttendance(entry, "PRESENT")}
-                          onMarkAbsent={() => markAttendance(entry, "ABSENT")}
-                          onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
-                          onClear={() => clearAttendance(entry)}
-                          onEdit={() => startEditEntry(entry)}
-                          onDelete={() => handleDeleteEntry(entry.id)}
-                        />
-                      ))
-                    ) : (
-                      entriesByDay[dayIndex].map((entry) => (
-                        <ScheduleClassChip
-                          key={entry.id}
-                          courseName={entry.course.name}
-                          startTime={entry.startTime}
-                          endTime={entry.endTime}
-                          room={entry.room}
-                          instructor={entry.instructor}
-                          onEdit={() => startEditEntry(entry)}
-                          onDelete={() => handleDeleteEntry(entry.id)}
-                        />
-                      ))
-                    )}
+            {/* Timetable Grid - a day with no classes is just noise once it's
+                one of six identical "No classes" cards, so it collapses to a
+                single compact row; only Today and days that actually have
+                something scheduled get the full card treatment. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
+              {DAYS.map((day, dayIndex) => {
+                const dayEntries = entriesByDay[dayIndex];
+                const isToday = dayIndex === todayDayIndex;
+
+                if (dayEntries.length === 0 && !isToday) {
+                  return (
+                    <div
+                      key={dayIndex}
+                      className="frosted-inset flex items-center justify-between rounded-xl px-4 py-2.5 text-sm"
+                    >
+                      <span className="font-medium text-foreground">{day}</span>
+                      <span className="text-muted-foreground">No classes</span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={dayIndex} className="frosted rounded-2xl p-4">
+                    <h3 className="mb-4 flex items-center justify-center gap-2 font-semibold text-foreground">
+                      {day}
+                      {isToday && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          Today
+                        </span>
+                      )}
+                    </h3>
+                    <div className="space-y-2">
+                      {dayEntries.length === 0 ? (
+                        <p className="text-center text-sm text-muted-foreground">
+                          No classes scheduled
+                        </p>
+                      ) : isToday ? (
+                        dayEntries.map((entry) => (
+                          <TodayClassChip
+                            key={entry.id}
+                            courseName={entry.course.name}
+                            startTime={entry.startTime}
+                            endTime={entry.endTime}
+                            room={entry.room}
+                            instructor={entry.instructor}
+                            status={
+                              (getTodayRecordForEntry(entry)?.status as TodayAttendanceStatus) ||
+                              null
+                            }
+                            onMarkPresent={() => markAttendance(entry, "PRESENT")}
+                            onMarkAbsent={() => markAttendance(entry, "ABSENT")}
+                            onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
+                            onClear={() => clearAttendance(entry)}
+                            onEdit={() => startEditEntry(entry)}
+                            onDelete={() => handleDeleteEntry(entry.id)}
+                          />
+                        ))
+                      ) : (
+                        dayEntries.map((entry) => (
+                          <ScheduleClassChip
+                            key={entry.id}
+                            courseName={entry.course.name}
+                            startTime={entry.startTime}
+                            endTime={entry.endTime}
+                            room={entry.room}
+                            instructor={entry.instructor}
+                            onEdit={() => startEditEntry(entry)}
+                            onDelete={() => handleDeleteEntry(entry.id)}
+                          />
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

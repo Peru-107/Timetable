@@ -9,7 +9,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "frosted text-primary hover:brightness-105",
+        default:
+          "bg-primary text-primary-foreground shadow-sm shadow-primary/25 hover:brightness-105",
         destructive: "frosted text-destructive hover:brightness-105",
         outline: "frosted text-foreground",
         secondary: "frosted-sm text-foreground",
