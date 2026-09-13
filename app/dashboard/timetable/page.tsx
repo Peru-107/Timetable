@@ -10,6 +10,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayClassChip";
+import { ScheduleClassChip } from "@/components/ScheduleClassChip";
 import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseScheduleRows";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes, startOfDay } from "@/lib/attendanceUtils";
@@ -1045,42 +1046,16 @@ function TimetableContent() {
                       ))
                     ) : (
                       entriesByDay[dayIndex].map((entry) => (
-                        <div key={entry.id} className="frosted-inset relative rounded-xl p-3">
-                          <div className="absolute right-2 top-2 flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => startEditEntry(entry)}
-                              className="text-muted-foreground hover:text-foreground"
-                              aria-label="Edit class"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteEntry(entry.id)}
-                              className="text-muted-foreground hover:text-destructive"
-                              aria-label="Delete class"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                          <p className="pr-10 text-sm font-semibold text-foreground">
-                            {entry.course.name}
-                          </p>
-                          <p className="font-mono text-xs text-muted-foreground">
-                            {entry.startTime} - {entry.endTime}
-                          </p>
-                          {entry.room && (
-                            <p className="text-xs text-muted-foreground">
-                              Room: {entry.room}
-                            </p>
-                          )}
-                          {entry.instructor && (
-                            <p className="text-xs text-muted-foreground">
-                              {entry.instructor}
-                            </p>
-                          )}
-                        </div>
+                        <ScheduleClassChip
+                          key={entry.id}
+                          courseName={entry.course.name}
+                          startTime={entry.startTime}
+                          endTime={entry.endTime}
+                          room={entry.room}
+                          instructor={entry.instructor}
+                          onEdit={() => startEditEntry(entry)}
+                          onDelete={() => handleDeleteEntry(entry.id)}
+                        />
                       ))
                     )}
                   </div>

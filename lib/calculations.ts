@@ -51,12 +51,9 @@ export async function calculateAttendanceStats(
     .filter((r) => r.status === "ABSENT")
     .reduce((sum, r) => sum + r.hoursDuration, 0);
 
-  // Cancelled classes never happened, so they're removed from the total
-  // rather than counted against or for the student.
-  const cancelledHours = attendanceRecords
-    .filter((r) => r.status === "CANCELLED")
-    .reduce((sum, r) => sum + r.hoursDuration, 0);
-  totalHours = Math.max(0, totalHours - cancelledHours);
+  // A cancelled class gets rescheduled, not dropped from the syllabus - it
+  // doesn't count as attended or absent for that date, but the semester's
+  // total required hours stays exactly what it was.
 
   const attendancePercentage =
     totalHours > 0 ? (attendedHours / totalHours) * 100 : 0;
@@ -122,7 +119,7 @@ export async function calculateAttendanceStatsByCourse(
       (sum, e) => sum + computeHoursFromTimes(e.startTime, e.endTime),
       0
     );
-    let totalHours = weeklyHours * weeksInSemester;
+    const totalHours = weeklyHours * weeksInSemester;
 
     const records = recordsByCourse.get(course.id) || [];
     const attendedHours = records
@@ -131,10 +128,8 @@ export async function calculateAttendanceStatsByCourse(
     const leavesUsed = records
       .filter((r) => r.status === "ABSENT")
       .reduce((sum, r) => sum + r.hoursDuration, 0);
-    const cancelledHours = records
-      .filter((r) => r.status === "CANCELLED")
-      .reduce((sum, r) => sum + r.hoursDuration, 0);
-    totalHours = Math.max(0, totalHours - cancelledHours);
+    // A cancelled class gets rescheduled, so it doesn't reduce this
+    // course's required total the way an absence would.
 
     const hoursAvailableToMiss = Math.max(0, round2(totalHours * 0.2 - leavesUsed));
 

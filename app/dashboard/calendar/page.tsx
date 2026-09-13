@@ -9,8 +9,9 @@ import { SelectNative } from "@/components/ui/select-native";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
+import { EventListItem } from "@/components/EventListItem";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, ChevronLeft, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Plus, X, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import {
   format,
   startOfMonth,
@@ -448,37 +449,15 @@ function CalendarContent() {
                         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
                     )
                     .map((event) => (
-                      <div key={event.id} className="frosted-inset relative rounded-xl p-3">
-                        <div className="absolute right-2 top-2 flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => startEditEvent(event)}
-                            className="text-muted-foreground hover:text-foreground"
-                            aria-label="Edit event"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEvent(event.id)}
-                            className="text-muted-foreground hover:text-destructive"
-                            aria-label="Delete event"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <p className={`pr-10 text-sm font-semibold ${getEventColor(event.eventType)}`}>
-                          {event.title}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {format(new Date(event.dueDate), "MMM d, yyyy")}
-                        </p>
-                        {event.description && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {event.description}
-                          </p>
-                        )}
-                      </div>
+                      <EventListItem
+                        key={event.id}
+                        title={event.title}
+                        dateLabel={format(new Date(event.dueDate), "MMM d, yyyy")}
+                        description={event.description}
+                        colorClassName={getEventColor(event.eventType)}
+                        onEdit={() => startEditEvent(event)}
+                        onDelete={() => handleDeleteEvent(event.id)}
+                      />
                     ))}
                   {events.filter((e) => new Date(e.dueDate) >= new Date()).length === 0 && (
                     <p className="py-4 text-center text-sm text-muted-foreground">

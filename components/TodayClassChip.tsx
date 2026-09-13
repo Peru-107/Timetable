@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Ban, Check, Pencil, Trash2, X as XIcon } from "lucide-react";
+import { useRef, useState, type CSSProperties } from "react";
+import { Ban, Check, MoreVertical, Pencil, RotateCcw, Trash2, X as XIcon } from "lucide-react";
 import { useTapHoldGesture } from "@/lib/hooks/useTapHoldGesture";
+import { ChipMenuPortal, type ChipMenuItem } from "@/components/ChipMenuPortal";
 
 export type TodayAttendanceStatus = "PRESENT" | "ABSENT" | "CANCELLED" | null;
 
@@ -37,8 +38,10 @@ const STATUS_STYLE: Record<"PRESENT" | "ABSENT" | "CANCELLED", CSSProperties> = 
 };
 
 /**
- * Interaction model (today's classes only): tap marks present, hold opens a
- * menu to mark absent/cancelled, double-tap clears whatever mark is set.
+ * Interaction model (today's classes only): tap marks present, double-tap
+ * clears whatever mark is set, hold or the kebab button opens a menu with
+ * every other action - the kebab exists so the same actions are reachable
+ * by keyboard/screen reader and don't depend on hold-timing at all.
  */
 export function TodayClassChip({
   courseName,
@@ -55,18 +58,7 @@ export function TodayClassChip({
   onDelete,
 }: TodayClassChipProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [menuOpen]);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const gesture = useTapHoldGesture({
     onTap: onMarkPresent,
@@ -76,8 +68,18 @@ export function TodayClassChip({
     },
   });
 
+  const menuItems: ChipMenuItem[] = [
+    { label: "Mark Absent", icon: XIcon, onClick: onMarkAbsent, tone: "destructive" },
+    { label: "Mark Cancelled", icon: Ban, onClick: onMarkCancelled, tone: "muted" },
+    ...(status ? [{ label: "Clear Mark", icon: RotateCcw, onClick: onClear, tone: "muted" as const }] : []),
+    ...(onEdit ? [{ label: "Edit Class", icon: Pencil, onClick: onEdit }] : []),
+    ...(onDelete
+      ? [{ label: "Delete Class", icon: Trash2, onClick: onDelete, tone: "destructive" as const }]
+      : []),
+  ];
+
   return (
-    <div ref={containerRef} className="relative">
+    <div className="relative">
       <button
         type="button"
         {...gesture}
@@ -86,7 +88,7 @@ export function TodayClassChip({
         }`}
         style={status ? STATUS_STYLE[status] : undefined}
       >
-        <div className={`flex items-center gap-2 ${onEdit || onDelete ? "pr-12" : ""}`}>
+        <div className="flex items-center gap-2 pr-6">
           <p
             className={`text-sm font-semibold text-foreground ${
               status === "CANCELLED" ? "line-through" : ""
@@ -105,61 +107,27 @@ export function TodayClassChip({
         {instructor && <p className="text-xs text-muted-foreground">{instructor}</p>}
       </button>
 
-      {(onEdit || onDelete) && (
-        <div className="absolute right-2 top-2 z-10 flex gap-1">
-          {onEdit && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="text-muted-foreground hover:text-foreground"
-              aria-label="Edit class"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="text-muted-foreground hover:text-destructive"
-              aria-label="Delete class"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      )}
+      <button
+        ref={menuButtonRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setMenuOpen((v) => !v);
+        }}
+        className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground"
+        aria-label={`More options for ${courseName}`}
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+      >
+        <MoreVertical className="h-4 w-4" />
+      </button>
 
-      {menuOpen && (
-        <div className="frosted absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl p-1">
-          <button
-            type="button"
-            onClick={() => {
-              setMenuOpen(false);
-              onMarkAbsent();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-destructive hover:bg-black/5"
-          >
-            <XIcon className="h-4 w-4" /> Mark Absent
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMenuOpen(false);
-              onMarkCancelled();
-            }}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground hover:bg-black/5"
-          >
-            <Ban className="h-4 w-4" /> Mark Cancelled
-          </button>
-        </div>
-      )}
+      <ChipMenuPortal
+        open={menuOpen}
+        anchorEl={menuButtonRef.current}
+        items={menuItems}
+        onClose={() => setMenuOpen(false)}
+      />
     </div>
   );
 }

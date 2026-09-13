@@ -3,7 +3,7 @@
 import { useRef } from "react";
 
 const HOLD_MS = 550;
-const DOUBLE_TAP_WINDOW_MS = 280;
+const DOUBLE_TAP_WINDOW_MS = 400;
 
 interface TapHoldGestureOptions {
   onTap: () => void;
