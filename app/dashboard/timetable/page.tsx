@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectNative } from "@/components/ui/select-native";
@@ -15,7 +16,7 @@ import { CoursePill } from "@/components/CoursePill";
 import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseScheduleRows";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes, startOfDay } from "@/lib/attendanceUtils";
-import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen } from "lucide-react";
 
 interface TimetableEntry {
   id: string;
@@ -698,24 +699,31 @@ function TimetableContent() {
             <div className="frosted mb-8 rounded-2xl p-6">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold text-foreground">Courses</h2>
-                <Button
-                  size="sm"
-                  variant={showAddCourseForm ? "outline" : "default"}
-                  onClick={() => {
-                    setEditingCourseId(null);
-                    setShowAddCourseForm((v) => !v);
-                  }}
-                >
-                  {showAddCourseForm ? (
-                    <>
-                      <X className="h-4 w-4" /> Cancel
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" /> Add Course
-                    </>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Link href={`/dashboard/study?semesterId=${semesterId}`}>
+                    <Button size="sm" variant="outline">
+                      <BookOpen className="h-4 w-4" /> Study Notebook
+                    </Button>
+                  </Link>
+                  <Button
+                    size="sm"
+                    variant={showAddCourseForm ? "outline" : "default"}
+                    onClick={() => {
+                      setEditingCourseId(null);
+                      setShowAddCourseForm((v) => !v);
+                    }}
+                  >
+                    {showAddCourseForm ? (
+                      <>
+                        <X className="h-4 w-4" /> Cancel
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" /> Add Course
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
               <p className="mb-4 text-sm text-muted-foreground">
                 Add each course you&apos;re taking this semester. You&apos;ll need at

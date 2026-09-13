@@ -23,6 +23,7 @@ model User {
   grades         Grade[]
   attendance     AttendanceRecord[]
   calendarEvents CalendarEvent[]
+  studyMaterials StudyMaterial[]
 
   @@map("users")
 }
@@ -59,6 +60,7 @@ model Course {
   timetableEntries TimetableEntry[]
   attendance       AttendanceRecord[]
   grade            Grade?
+  studyMaterials   StudyMaterial[]
 
   @@map("courses")
 }
@@ -173,4 +175,27 @@ model TimetableUpload {
   updatedAt     DateTime @updatedAt
 
   @@map("timetable_uploads")
+}
+
+// A student's uploaded study material (a PDF or photo of notes) for one
+// course. Only the extracted text is kept, not the original file bytes -
+// same tradeoff the timetable-scan upload already makes - so this needs no
+// separate file storage service to set up.
+model StudyMaterial {
+  id       String @id @default(cuid())
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+
+  fileName      String
+  fileType      String // "pdf" | "image"
+  extractedText String?
+  status        String  @default("processing") // processing, completed, failed
+  errorMessage  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("study_materials")
 }
