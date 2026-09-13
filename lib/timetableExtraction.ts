@@ -1,14 +1,19 @@
 import { GoogleGenAI, Type, type Schema } from "@google/genai";
 import { createWorker } from "tesseract.js";
 
-// Try established, less-contended models before the newest flagship, which
-// is more likely to hit capacity limits (503 UNAVAILABLE) on the free tier.
-const VISION_MODELS = ["gemini-2.5-flash", "gemini-3.7-flash", "gemini-3.8-flash"];
-const TEXT_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-3.7-flash"];
+// gemini-2.5-flash is no longer available to new API keys at all (404, not
+// transient) - Google's own error message points to the 3.x line instead.
+// Try 3.6 first (mid-tier, likely least contended), then the newer/older
+// flagships as fallback.
+const VISION_MODELS = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash"];
+const TEXT_FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-3.7-flash"];
 
 function isRetryableStatus(error: unknown): boolean {
   const status = (error as { status?: number } | undefined)?.status;
-  return status === 503 || status === 429;
+  // 404 is included because it can mean "this model isn't available to this
+  // key" (a per-model access issue, not a bad request) - worth trying the
+  // next model in the list rather than failing outright.
+  return status === 503 || status === 429 || status === 404;
 }
 
 export interface TimetableExtraction {
