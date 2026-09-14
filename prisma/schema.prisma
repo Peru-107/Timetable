@@ -24,6 +24,7 @@ model User {
   attendance     AttendanceRecord[]
   calendarEvents CalendarEvent[]
   studyMaterials StudyMaterial[]
+  chatMessages   ChatMessage[]
 
   @@map("users")
 }
@@ -43,6 +44,7 @@ model Semester {
   timetableEntries TimetableEntry[]
   grades           Grade[]
   calendarEvents   CalendarEvent[]
+  chatMessages     ChatMessage[]
 
   @@map("semesters")
 }
@@ -61,6 +63,7 @@ model Course {
   attendance       AttendanceRecord[]
   grade            Grade?
   studyMaterials   StudyMaterial[]
+  chatMessages     ChatMessage[]
 
   @@map("courses")
 }
@@ -198,4 +201,27 @@ model StudyMaterial {
   updatedAt DateTime @updatedAt
 
   @@map("study_materials")
+}
+
+// One row per turn in a study chat. There's exactly one ongoing thread per
+// (userId, semesterId, courseId) triple - courseId null means the
+// "ask across every subject this semester" scope - rather than a separate
+// ChatThread model, since a student never needs more than one thread per
+// scope.
+model ChatMessage {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  semester   Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semesterId String
+  course     Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId   String? // null = cross-subject thread for this semester
+
+  role          String // "user" | "assistant"
+  content       String
+  usedWebSearch Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("chat_messages")
 }

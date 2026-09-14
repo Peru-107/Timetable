@@ -8,7 +8,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { FileText } from "lucide-react";
+import { FileText, Sparkles } from "lucide-react";
 
 interface Course {
   id: string;
@@ -89,7 +89,22 @@ function StudyContent() {
             Add a course on the Timetable tab first, then come back here to upload material for it.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <>
+            <Link
+              href={`/dashboard/study/all?semesterId=${semesterId}`}
+              className="frosted mb-6 flex items-center gap-4 rounded-2xl p-5 transition-transform hover:-translate-y-0.5"
+            >
+              <div className="frosted-inset flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Ask Across All Subjects</p>
+                <p className="text-sm text-muted-foreground">
+                  One chat that draws on everything you&apos;ve uploaded this semester
+                </p>
+              </div>
+            </Link>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
               <Link
                 key={course.id}
@@ -109,7 +124,8 @@ function StudyContent() {
                 </div>
               </Link>
             ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>

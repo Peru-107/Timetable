@@ -6,6 +6,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
+import { StudyChat } from "@/components/StudyChat";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -176,12 +177,12 @@ function StudyCourseContent() {
         )}
 
         {materials.length === 0 ? (
-          <div className="frosted rounded-2xl p-8 text-center text-muted-foreground">
+          <div className="frosted mb-8 rounded-2xl p-8 text-center text-muted-foreground">
             No study material uploaded yet for this course. Upload a PDF or a photo of your notes
-            to get started - a chat that answers questions from this material is coming next.
+            to ask AI questions about it below.
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="mb-8 space-y-3">
             {materials.map((m) => (
               <div key={m.id} className="frosted overflow-hidden rounded-2xl">
                 <div className="flex items-center gap-3 p-4">
@@ -241,6 +242,10 @@ function StudyCourseContent() {
               </div>
             ))}
           </div>
+        )}
+
+        {semesterId && (
+          <StudyChat semesterId={semesterId} courseId={courseId} scopeLabel={courseName || "this subject"} />
         )}
       </div>
     </div>
