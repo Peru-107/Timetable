@@ -16,6 +16,7 @@ import {
   BookMarked,
   Plus,
   Pencil,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -63,6 +64,7 @@ export default function DashboardPage() {
     weeks: 15,
   });
   const [isSavingSemester, setIsSavingSemester] = useState(false);
+  const [isDeletingSemester, setIsDeletingSemester] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -85,6 +87,10 @@ export default function DashboardPage() {
         setActiveSemester(data[0]);
         fetchAttendanceStats(data[0].id);
         fetchCGPA(data[0].id);
+      } else {
+        setActiveSemester(null);
+        setAttendanceStats(null);
+        setCGPAData(null);
       }
     } catch (error) {
       console.error("Error fetching semesters:", error);
@@ -152,6 +158,29 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteSemester = async () => {
+    if (!activeSemester) return;
+    if (
+      !confirm(
+        `Delete "${activeSemester.name}"? This permanently removes its courses, timetable, attendance, grades, and calendar events. This can't be undone.`
+      )
+    ) {
+      return;
+    }
+    setIsDeletingSemester(true);
+    try {
+      const res = await fetch(`/api/semesters?id=${activeSemester.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setShowEditSemester(false);
+        await fetchSemesters();
+      }
+    } catch (error) {
+      console.error("Error deleting semester:", error);
+    } finally {
+      setIsDeletingSemester(false);
+    }
+  };
+
   if (status === "loading" || isLoading) {
     return <PageLoader />;
   }
@@ -190,6 +219,18 @@ export default function DashboardPage() {
                 aria-label="Edit semester"
               >
                 {showEditSemester ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+              </Button>
+            )}
+            {activeSemester && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDeleteSemester}
+                disabled={isDeletingSemester}
+                aria-label="Delete semester"
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
           </div>
