@@ -60,24 +60,17 @@ function buildSystemInstruction(contextBlock: string, useWebSearch: boolean): st
   return contextBlock ? `${base}\n\nSTUDY MATERIAL:\n${contextBlock}` : base;
 }
 
-export async function answerStudyQuestion(
-  question: string,
-  materials: StudyMaterialContext[],
-  history: ChatHistoryMessage[],
-  useWebSearch: boolean
+function describeError(error: unknown): string {
+  const err = error as { status?: number; message?: string } | undefined;
+  return `status=${err?.status ?? "unknown"} message=${err?.message ?? String(error)}`;
+}
+
+async function tryModels(
+  client: GoogleGenAI,
+  contents: Array<{ role: string; parts: Array<{ text: string }> }>,
+  systemInstruction: string,
+  withSearch: boolean
 ): Promise<string> {
-  const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const contextBlock = buildContextBlock(materials);
-  const systemInstruction = buildSystemInstruction(contextBlock, useWebSearch);
-
-  const contents = [
-    ...history.map((m) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
-    })),
-    { role: "user", parts: [{ text: question }] },
-  ];
-
   let lastError: unknown;
   for (const model of CHAT_MODELS) {
     try {
@@ -86,7 +79,7 @@ export async function answerStudyQuestion(
         contents,
         config: {
           systemInstruction,
-          ...(useWebSearch ? { tools: [{ googleSearch: {} }] } : {}),
+          ...(withSearch ? { tools: [{ googleSearch: {} }] } : {}),
         },
       });
       return (
@@ -102,4 +95,49 @@ export async function answerStudyQuestion(
   throw lastError instanceof Error
     ? lastError
     : new Error("Gemini is temporarily unavailable. Please try again shortly.");
+}
+
+export async function answerStudyQuestion(
+  question: string,
+  materials: StudyMaterialContext[],
+  history: ChatHistoryMessage[],
+  useWebSearch: boolean
+): Promise<string> {
+  const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const contextBlock = buildContextBlock(materials);
+
+  const contents = [
+    ...history.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    })),
+    { role: "user", parts: [{ text: question }] },
+  ];
+
+  if (!useWebSearch) {
+    return tryModels(client, contents, buildSystemInstruction(contextBlock, false), false);
+  }
+
+  // The googleSearch tool can be rejected by the API for reasons that have
+  // nothing to do with whether the question itself is answerable (a
+  // model/tier mismatch, a transient grounding-service issue, etc) - when
+  // that happens, silently failing the whole question would be worse than
+  // just answering from the uploaded material and saying so, so that's the
+  // fallback rather than a dead-end error.
+  try {
+    return await tryModels(client, contents, buildSystemInstruction(contextBlock, true), true);
+  } catch (searchError) {
+    console.error(`Web-search chat call failed (${describeError(searchError)}), falling back to material-only`);
+    try {
+      const fallbackAnswer = await tryModels(
+        client,
+        contents,
+        buildSystemInstruction(contextBlock, false),
+        false
+      );
+      return `${fallbackAnswer}\n\n(Web search wasn't available for this answer - it's based on your uploaded material only.)`;
+    } catch {
+      throw searchError;
+    }
+  }
 }
