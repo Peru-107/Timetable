@@ -15,7 +15,7 @@ import { ScheduleClassChip } from "@/components/ScheduleClassChip";
 import { CoursePill } from "@/components/CoursePill";
 import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseScheduleRows";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { computeHoursFromTimes, startOfDay } from "@/lib/attendanceUtils";
+import { computeHoursFromTimes, formatTime12h, startOfDay } from "@/lib/attendanceUtils";
 import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen } from "lucide-react";
 
 interface TimetableEntry {
@@ -650,8 +650,8 @@ function TimetableContent() {
                 const e = group[0];
                 return (
                   <li key={i}>
-                    {e.course.name} on {DAYS[e.dayOfWeek]} {e.startTime}-{e.endTime} (appears{" "}
-                    {group.length} times)
+                    {e.course.name} on {DAYS[e.dayOfWeek]} {formatTime12h(e.startTime)}-
+                    {formatTime12h(e.endTime)} (appears {group.length} times)
                   </li>
                 );
               })}
@@ -673,8 +673,9 @@ function TimetableContent() {
               {mergeableGroups.map((group, i) => (
                 <li key={i}>
                   {group[0].course.name} on {DAYS[group[0].dayOfWeek]}{" "}
-                  {group[0].startTime}-{group[group.length - 1].endTime} (currently{" "}
-                  {group.length} separate entries)
+                  {formatTime12h(group[0].startTime)}-
+                  {formatTime12h(group[group.length - 1].endTime)} (currently {group.length}{" "}
+                  separate entries)
                 </li>
               ))}
             </ul>

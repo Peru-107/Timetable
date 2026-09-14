@@ -4,6 +4,15 @@ export function startOfDay(date: Date): Date {
   return d;
 }
 
+/** "14:05" -> "2:05 PM" - display only, the underlying "HH:MM" value stays 24-hour for storage/sorting/math. */
+export function formatTime12h(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return time;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+}
+
 export function computeHoursFromTimes(startTime: string, endTime: string): number {
   const [sh, sm] = startTime.split(":").map(Number);
   const [eh, em] = endTime.split(":").map(Number);

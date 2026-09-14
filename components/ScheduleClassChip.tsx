@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { ChipMenuPortal, type ChipMenuItem } from "@/components/ChipMenuPortal";
+import { formatTime12h } from "@/lib/attendanceUtils";
 
 interface ScheduleClassChipProps {
   courseName: string;
@@ -48,7 +49,7 @@ export function ScheduleClassChip({
 
       <p className="pr-6 text-sm font-semibold text-foreground">{courseName}</p>
       <p className="font-mono text-xs text-muted-foreground">
-        {startTime} - {endTime}
+        {formatTime12h(startTime)} - {formatTime12h(endTime)}
       </p>
       {room && <p className="text-xs text-muted-foreground">Room: {room}</p>}
       {instructor && <p className="text-xs text-muted-foreground">{instructor}</p>}

@@ -4,6 +4,7 @@ import { useRef, useState, type CSSProperties } from "react";
 import { Ban, Check, MoreVertical, Pencil, RotateCcw, Trash2, X as XIcon } from "lucide-react";
 import { useTapHoldGesture } from "@/lib/hooks/useTapHoldGesture";
 import { ChipMenuPortal, type ChipMenuItem } from "@/components/ChipMenuPortal";
+import { formatTime12h } from "@/lib/attendanceUtils";
 
 export type TodayAttendanceStatus = "PRESENT" | "ABSENT" | "CANCELLED" | null;
 
@@ -101,7 +102,7 @@ export function TodayClassChip({
           {status === "CANCELLED" && <Ban className="h-4 w-4 shrink-0 text-muted-foreground" />}
         </div>
         <p className="font-mono text-xs text-muted-foreground">
-          {startTime} - {endTime}
+          {formatTime12h(startTime)} - {formatTime12h(endTime)}
         </p>
         {room && <p className="text-xs text-muted-foreground">Room: {room}</p>}
         {instructor && <p className="text-xs text-muted-foreground">{instructor}</p>}
