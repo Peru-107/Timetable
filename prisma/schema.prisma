@@ -19,14 +19,27 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  semesters      Semester[]
-  grades         Grade[]
-  attendance     AttendanceRecord[]
-  calendarEvents CalendarEvent[]
-  studyMaterials StudyMaterial[]
-  chatMessages   ChatMessage[]
+  semesters         Semester[]
+  grades            Grade[]
+  attendance        AttendanceRecord[]
+  calendarEvents    CalendarEvent[]
+  studyMaterials    StudyMaterial[]
+  chatMessages      ChatMessage[]
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@map("push_subscriptions")
 }
 
 model Semester {

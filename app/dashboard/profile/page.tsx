@@ -9,7 +9,16 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { useTheme, type ThemePreference } from "@/components/ThemeProvider";
-import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2 } from "lucide-react";
+import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2, Bell, BellOff } from "lucide-react";
+
+function urlBase64ToUint8Array(base64String: string): BufferSource {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const bytes = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) bytes[i] = rawData.charCodeAt(i);
+  return bytes.buffer;
+}
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
   { value: "auto", label: "Auto", icon: MonitorSmartphone },
@@ -48,6 +57,11 @@ function ProfileContent() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  const [notifSupported, setNotifSupported] = useState(false);
+  const [notifSubscribed, setNotifSubscribed] = useState(false);
+  const [notifBusy, setNotifBusy] = useState(false);
+  const [notifError, setNotifError] = useState("");
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -72,6 +86,83 @@ function ProfileContent() {
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    const supported =
+      typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
+    setNotifSupported(supported);
+    if (!supported) return;
+
+    (async () => {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const existing = await registration.pushManager.getSubscription();
+        setNotifSubscribed(!!existing);
+      } catch (error) {
+        console.error("Error checking push subscription:", error);
+      }
+    })();
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    setNotifBusy(true);
+    setNotifError("");
+    try {
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        setNotifError("Notifications aren't configured on this deployment yet.");
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setNotifError("Notification permission was denied in the browser.");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+      const json = subscription.toJSON();
+
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+      });
+      if (!res.ok) throw new Error("Failed to save subscription");
+
+      setNotifSubscribed(true);
+    } catch (error) {
+      console.error("Error enabling notifications:", error);
+      setNotifError("Couldn't turn on notifications. Please try again.");
+    } finally {
+      setNotifBusy(false);
+    }
+  };
+
+  const handleDisableNotifications = async () => {
+    setNotifBusy(true);
+    setNotifError("");
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await fetch(`/api/push/subscribe?endpoint=${encodeURIComponent(subscription.endpoint)}`, {
+          method: "DELETE",
+        });
+        await subscription.unsubscribe();
+      }
+      setNotifSubscribed(false);
+    } catch (error) {
+      console.error("Error disabling notifications:", error);
+      setNotifError("Couldn't turn off notifications. Please try again.");
+    } finally {
+      setNotifBusy(false);
+    }
+  };
 
   const handleSaveDetails = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,6 +395,34 @@ function ProfileContent() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Notifications */}
+          <div className="frosted rounded-2xl p-6">
+            <h2 className="mb-1 text-xl font-semibold text-foreground">Class-End Reminders</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              {notifSupported
+                ? "Get a notification right when a class ends, with one-tap Present / Absent buttons - no need to open the app. On iPhone, add this app to your Home Screen first (Share -> Add to Home Screen) for notifications to work."
+                : "This browser doesn't support push notifications."}
+            </p>
+
+            {notifError && (
+              <div className="frosted-inset mb-4 flex items-center gap-2 rounded-xl p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {notifError}
+              </div>
+            )}
+
+            {notifSupported && (
+              <Button
+                variant={notifSubscribed ? "outline" : "default"}
+                onClick={notifSubscribed ? handleDisableNotifications : handleEnableNotifications}
+                disabled={notifBusy}
+              >
+                {notifSubscribed ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                {notifBusy ? "Working..." : notifSubscribed ? "Turn Off Reminders" : "Turn On Reminders"}
+              </Button>
+            )}
           </div>
 
           {/* Danger Zone */}
