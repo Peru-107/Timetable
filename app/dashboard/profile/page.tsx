@@ -24,6 +24,25 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   ]);
 }
 
+/**
+ * iOS/iPadOS only lets a service worker actually reach "ready" (required for
+ * push) when the site is opened from a Home Screen icon, not a normal Safari
+ * tab - in a regular tab, serviceWorker.ready hangs rather than rejecting,
+ * which is what the withTimeout guards above were surfacing. Detecting this
+ * upfront means the app can say so immediately, instead of just timing out
+ * every attempt for a browser where it can never succeed.
+ */
+function isIosNotStandalone(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  const isIos =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true;
+  return isIos && !isStandalone;
+}
+
 function urlBase64ToUint8Array(base64String: string): BufferSource {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -74,6 +93,7 @@ function ProfileContent() {
   const [notifSubscribed, setNotifSubscribed] = useState(false);
   const [notifBusy, setNotifBusy] = useState(false);
   const [notifError, setNotifError] = useState("");
+  const [needsHomeScreenInstall, setNeedsHomeScreenInstall] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -106,6 +126,13 @@ function ProfileContent() {
     setNotifSupported(supported);
     if (!supported) return;
 
+    // Doomed to time out in a plain Safari tab on iOS/iPadOS - skip the
+    // attempt (and the wasted wait) and just tell the user what to do.
+    if (isIosNotStandalone()) {
+      setNeedsHomeScreenInstall(true);
+      return;
+    }
+
     (async () => {
       try {
         const registration = await withTimeout(
@@ -122,6 +149,11 @@ function ProfileContent() {
   }, []);
 
   const handleEnableNotifications = async () => {
+    if (isIosNotStandalone()) {
+      setNeedsHomeScreenInstall(true);
+      return;
+    }
+
     setNotifBusy(true);
     setNotifError("");
     try {
@@ -452,15 +484,23 @@ function ProfileContent() {
               </div>
             )}
 
-            {notifSupported && (
-              <Button
-                variant={notifSubscribed ? "outline" : "default"}
-                onClick={notifSubscribed ? handleDisableNotifications : handleEnableNotifications}
-                disabled={notifBusy}
-              >
-                {notifSubscribed ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-                {notifBusy ? "Working..." : notifSubscribed ? "Turn Off Reminders" : "Turn On Reminders"}
-              </Button>
+            {needsHomeScreenInstall ? (
+              <div className="frosted-inset flex items-center gap-2 rounded-xl p-3 text-sm text-foreground">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 text-primary" />
+                Add this app to your Home Screen first (Share -&gt; Add to Home Screen), then open it
+                from there to turn on reminders - Safari won&apos;t allow it in a regular tab.
+              </div>
+            ) : (
+              notifSupported && (
+                <Button
+                  variant={notifSubscribed ? "outline" : "default"}
+                  onClick={notifSubscribed ? handleDisableNotifications : handleEnableNotifications}
+                  disabled={notifBusy}
+                >
+                  {notifSubscribed ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                  {notifBusy ? "Working..." : notifSubscribed ? "Turn Off Reminders" : "Turn On Reminders"}
+                </Button>
+              )
             )}
           </div>
 

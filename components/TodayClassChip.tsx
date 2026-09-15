@@ -90,9 +90,9 @@ export function TodayClassChip({
         }`}
         style={status ? STATUS_STYLE[status] : undefined}
       >
-        <div className="flex items-center gap-2 pr-6">
+        <div className="flex items-start gap-2 pr-7">
           <p
-            className={`text-sm font-semibold text-foreground ${
+            className={`min-w-0 flex-1 text-sm font-semibold text-foreground ${
               status === "CANCELLED" ? "line-through" : ""
             }`}
           >
@@ -105,8 +105,8 @@ export function TodayClassChip({
                 initial={{ scale: 0.4, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.4, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 500, damping: 20 }}
-                className="shrink-0"
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="mt-0.5 shrink-0"
               >
                 {status === "PRESENT" && <Check className="h-4 w-4 text-success" />}
                 {status === "ABSENT" && <XIcon className="h-4 w-4 text-destructive" />}
