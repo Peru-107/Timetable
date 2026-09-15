@@ -11,6 +11,19 @@ import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { useTheme, type ThemePreference } from "@/components/ThemeProvider";
 import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2, Bell, BellOff } from "lucide-react";
 
+/**
+ * Notification.requestPermission(), serviceWorker.ready, and pushManager.subscribe()
+ * are all promises that some browsers/OEM Android builds will leave pending
+ * forever instead of rejecting when push isn't actually available - without
+ * this, the button gets stuck on "Working..." with no feedback at all.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
+
 function urlBase64ToUint8Array(base64String: string): BufferSource {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -95,7 +108,11 @@ function ProfileContent() {
 
     (async () => {
       try {
-        const registration = await navigator.serviceWorker.ready;
+        const registration = await withTimeout(
+          navigator.serviceWorker.ready,
+          10000,
+          "Timed out waiting for the app's background service to start."
+        );
         const existing = await registration.pushManager.getSubscription();
         setNotifSubscribed(!!existing);
       } catch (error) {
@@ -114,17 +131,29 @@ function ProfileContent() {
         return;
       }
 
-      const permission = await Notification.requestPermission();
+      const permission = await withTimeout(
+        Notification.requestPermission(),
+        20000,
+        "Timed out waiting for the notification permission prompt."
+      );
       if (permission !== "granted") {
         setNotifError("Notification permission was denied in the browser.");
         return;
       }
 
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      });
+      const registration = await withTimeout(
+        navigator.serviceWorker.ready,
+        10000,
+        "Timed out waiting for the app's background service to start."
+      );
+      const subscription = await withTimeout(
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        }),
+        15000,
+        "Timed out registering with the push service - your browser or network may be blocking it."
+      );
       const json = subscription.toJSON();
 
       const res = await fetch("/api/push/subscribe", {
@@ -137,7 +166,10 @@ function ProfileContent() {
       setNotifSubscribed(true);
     } catch (error) {
       console.error("Error enabling notifications:", error);
-      setNotifError("Couldn't turn on notifications. Please try again.");
+      const message = error instanceof Error ? error.message : "";
+      setNotifError(
+        message.startsWith("Timed out") ? message : "Couldn't turn on notifications. Please try again."
+      );
     } finally {
       setNotifBusy(false);
     }
@@ -147,7 +179,11 @@ function ProfileContent() {
     setNotifBusy(true);
     setNotifError("");
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await withTimeout(
+        navigator.serviceWorker.ready,
+        10000,
+        "Timed out waiting for the app's background service to start."
+      );
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) {
         await fetch(`/api/push/subscribe?endpoint=${encodeURIComponent(subscription.endpoint)}`, {
@@ -158,7 +194,10 @@ function ProfileContent() {
       setNotifSubscribed(false);
     } catch (error) {
       console.error("Error disabling notifications:", error);
-      setNotifError("Couldn't turn off notifications. Please try again.");
+      const message = error instanceof Error ? error.message : "";
+      setNotifError(
+        message.startsWith("Timed out") ? message : "Couldn't turn off notifications. Please try again."
+      );
     } finally {
       setNotifBusy(false);
     }
