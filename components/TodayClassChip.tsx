@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef, useState, type CSSProperties } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { Ban, Check, MoreVertical, Pencil, RotateCcw, Trash2, X as XIcon } from "lucide-react";
+import { Ban, MoreVertical, Pencil, RotateCcw, Trash2, X as XIcon } from "lucide-react";
 import { useTapHoldGesture } from "@/lib/hooks/useTapHoldGesture";
 import { ChipMenuPortal, type ChipMenuItem } from "@/components/ChipMenuPortal";
 import { formatTime12h } from "@/lib/attendanceUtils";
@@ -90,30 +89,14 @@ export function TodayClassChip({
         }`}
         style={status ? STATUS_STYLE[status] : undefined}
       >
-        <div className="flex items-start gap-2 pr-7">
+        <div className="pr-7">
           <p
-            className={`min-w-0 flex-1 text-sm font-semibold text-foreground ${
+            className={`text-sm font-semibold text-foreground ${
               status === "CANCELLED" ? "line-through" : ""
             }`}
           >
             {courseName}
           </p>
-          <AnimatePresence mode="wait">
-            {status && (
-              <motion.span
-                key={status}
-                initial={{ scale: 0.4, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.4, opacity: 0 }}
-                transition={{ duration: 0.15, ease: "easeOut" }}
-                className="mt-0.5 shrink-0"
-              >
-                {status === "PRESENT" && <Check className="h-4 w-4 text-success" />}
-                {status === "ABSENT" && <XIcon className="h-4 w-4 text-destructive" />}
-                {status === "CANCELLED" && <Ban className="h-4 w-4 text-muted-foreground" />}
-              </motion.span>
-            )}
-          </AnimatePresence>
         </div>
         <p className="font-mono text-xs text-muted-foreground">
           {formatTime12h(startTime)} - {formatTime12h(endTime)}

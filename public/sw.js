@@ -1,5 +1,5 @@
-const CACHE_NAME = "timetable-shell-v1";
-const SHELL_ASSETS = ["/manifest.json", "/icon-192.png", "/icon-512.png"];
+const CACHE_NAME = "timetable-shell-v2";
+const SHELL_ASSETS = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

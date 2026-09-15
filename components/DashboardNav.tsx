@@ -124,8 +124,6 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
           })}
         </div>
       </nav>
-      {/* Reserves space so page content doesn't sit under the fixed bottom bar */}
-      <div className="h-20 sm:hidden" aria-hidden="true" />
     </>
   );
 }
