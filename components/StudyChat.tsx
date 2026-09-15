@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send, Globe, Loader2, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { Send, Globe, Sparkles } from "lucide-react";
+import { ThinkingDots } from "@/components/ThinkingDots";
+import { useAutoResizeTextarea } from "@/lib/hooks/useAutoResizeTextarea";
 
 interface ChatMessage {
   id: string;
@@ -30,6 +33,7 @@ export function StudyChat({ semesterId, courseId, scopeLabel }: StudyChatProps) 
   const [isSending, setIsSending] = useState(false);
   const [useWebSearch, setUseWebSearch] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 40, maxHeight: 160 });
 
   useEffect(() => {
     fetchMessages();
@@ -54,12 +58,12 @@ export function StudyChat({ semesterId, courseId, scopeLabel }: StudyChatProps) 
     }
   };
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const sendMessage = async () => {
     const question = input.trim();
     if (!question || isSending) return;
 
     setInput("");
+    adjustHeight(true);
     setIsSending(true);
     setMessages((prev) => [
       ...prev,
@@ -96,6 +100,18 @@ export function StudyChat({ semesterId, courseId, scopeLabel }: StudyChatProps) 
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
   return (
     <div className="frosted flex flex-col rounded-2xl p-5">
       <div className="mb-3 flex items-center gap-3">
@@ -117,27 +133,36 @@ export function StudyChat({ semesterId, courseId, scopeLabel }: StudyChatProps) 
             uploaded, unless you turn on web search below.
           </p>
         ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm ${
-                m.role === "user"
-                  ? "self-end rounded-br-md bg-primary text-primary-foreground"
-                  : "frosted-inset self-start rounded-bl-md text-foreground"
-              }`}
-            >
-              {m.content}
-            </div>
-          ))
+          <AnimatePresence initial={false}>
+            {messages.map((m) => (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm ${
+                  m.role === "user"
+                    ? "self-end rounded-br-md bg-primary text-primary-foreground"
+                    : "frosted-inset self-start rounded-bl-md text-foreground"
+                }`}
+              >
+                {m.content}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         )}
         {isSending && (
-          <div className="frosted-inset flex max-w-[85%] items-center gap-2 self-start rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Thinking...
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="frosted-inset flex max-w-[85%] items-center gap-2 self-start rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted-foreground"
+          >
+            <ThinkingDots />
+          </motion.div>
         )}
       </div>
 
-      <form onSubmit={handleSend} className="flex items-center gap-2">
+      <form onSubmit={handleSubmit} className="flex items-end gap-2">
         <button
           type="button"
           onClick={() => setUseWebSearch((v) => !v)}
@@ -152,12 +177,17 @@ export function StudyChat({ semesterId, courseId, scopeLabel }: StudyChatProps) 
           <Globe className="h-3.5 w-3.5" />
           Web
         </button>
-        <input
-          type="text"
+        <textarea
+          ref={textareaRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            adjustHeight();
+          }}
+          onKeyDown={handleKeyDown}
+          rows={1}
           placeholder={`Ask about ${scopeLabel.toLowerCase()}...`}
-          className="frosted-inset h-10 flex-1 rounded-xl px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          className="frosted-inset flex-1 resize-none rounded-xl px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground"
         />
         <button
           type="submit"

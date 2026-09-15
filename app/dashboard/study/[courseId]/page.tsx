@@ -7,6 +7,7 @@ import Link from "next/link";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { StudyChat } from "@/components/StudyChat";
+import { ShimmerText } from "@/components/kokonutui/shimmer-text";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -196,8 +197,9 @@ function StudyCourseContent() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-foreground">{m.fileName}</p>
                     {m.status === "processing" && (
-                      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Extracting text...
+                      <p className="flex items-center gap-1.5 text-sm">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        <ShimmerText text="Extracting text..." className="text-sm" />
                       </p>
                     )}
                     {m.status === "completed" && (

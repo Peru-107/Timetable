@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type CSSProperties } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Ban, Check, MoreVertical, Pencil, RotateCcw, Trash2, X as XIcon } from "lucide-react";
 import { useTapHoldGesture } from "@/lib/hooks/useTapHoldGesture";
 import { ChipMenuPortal, type ChipMenuItem } from "@/components/ChipMenuPortal";
@@ -97,9 +98,22 @@ export function TodayClassChip({
           >
             {courseName}
           </p>
-          {status === "PRESENT" && <Check className="h-4 w-4 shrink-0 text-success" />}
-          {status === "ABSENT" && <XIcon className="h-4 w-4 shrink-0 text-destructive" />}
-          {status === "CANCELLED" && <Ban className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          <AnimatePresence mode="wait">
+            {status && (
+              <motion.span
+                key={status}
+                initial={{ scale: 0.4, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.4, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                className="shrink-0"
+              >
+                {status === "PRESENT" && <Check className="h-4 w-4 text-success" />}
+                {status === "ABSENT" && <XIcon className="h-4 w-4 text-destructive" />}
+                {status === "CANCELLED" && <Ban className="h-4 w-4 text-muted-foreground" />}
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
         <p className="font-mono text-xs text-muted-foreground">
           {formatTime12h(startTime)} - {formatTime12h(endTime)}

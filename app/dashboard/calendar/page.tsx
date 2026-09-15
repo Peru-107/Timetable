@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectNative } from "@/components/ui/select-native";
@@ -264,7 +265,15 @@ function CalendarContent() {
                 </div>
 
                 {/* Calendar grid */}
-                <div className="grid grid-cols-7 gap-2">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${currentDate.getFullYear()}-${currentDate.getMonth()}`}
+                    initial={{ opacity: 0, x: 16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -16 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="grid grid-cols-7 gap-2"
+                  >
                   {Array.from({ length: firstDayOfMonth }).map((_, i) => (
                     <div key={`empty-${i}`} className="aspect-square" />
                   ))}
@@ -337,7 +346,8 @@ function CalendarContent() {
                       </div>
                     );
                   })}
-                </div>
+                  </motion.div>
+                </AnimatePresence>
 
                 <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">

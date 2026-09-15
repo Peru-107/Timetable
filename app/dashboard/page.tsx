@@ -3,11 +3,14 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { motion, type Variants } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { DailyAttendanceCard } from "@/components/DailyAttendanceCard";
+import { LiquidGlassCard } from "@/components/kokonutui/liquid-glass-card";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import {
@@ -47,6 +50,11 @@ interface CGPAData {
   }>;
   cgpa: number;
 }
+
+const statCardVariants: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } },
+};
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -296,77 +304,88 @@ export default function DashboardPage() {
             />
 
             {/* Statistics Grid */}
-            <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+            <motion.div
+              className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3"
+              initial="hidden"
+              animate="show"
+              variants={{ show: { transition: { staggerChildren: 0.08 } } }}
+            >
               {/* Attendance Card */}
               {attendanceStats && (
-                <div className="frosted rounded-2xl p-6">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
-                      <ClipboardCheck className="h-5 w-5 text-primary" />
+                <motion.div variants={statCardVariants}>
+                  <LiquidGlassCard>
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                        <ClipboardCheck className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Attendance
+                      </h3>
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground">
-                      Attendance
-                    </h3>
-                  </div>
-                  <div className="text-gradient-brand mb-2 font-display text-4xl font-bold">
-                    {attendanceStats.attendancePercentage}%
-                  </div>
-                  <div className="frosted-inset mb-4 h-2 overflow-hidden rounded-full">
-                    <div
-                      className="bg-gradient-brand h-full rounded-full"
-                      style={{
-                        width: `${Math.min(100, attendanceStats.attendancePercentage)}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="mb-4 text-muted-foreground">
-                    {attendanceStats.attendedHours}/{attendanceStats.totalHours} hours
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Leaves Available: {attendanceStats.leavesAvailable}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Required: 80% ({attendanceStats.requiredHours} hours)
-                  </p>
-                </div>
+                    <div className="text-gradient-brand mb-2 font-display text-4xl font-bold">
+                      <AnimatedNumber value={attendanceStats.attendancePercentage} suffix="%" />
+                    </div>
+                    <div className="frosted-inset mb-4 h-2 overflow-hidden rounded-full">
+                      <motion.div
+                        className="bg-gradient-brand h-full rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min(100, attendanceStats.attendancePercentage)}%` }}
+                        transition={{ type: "spring", stiffness: 80, damping: 20 }}
+                      />
+                    </div>
+                    <p className="mb-4 text-muted-foreground">
+                      {attendanceStats.attendedHours}/{attendanceStats.totalHours} hours
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Leaves Available: {attendanceStats.leavesAvailable}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Required: 80% ({attendanceStats.requiredHours} hours)
+                    </p>
+                  </LiquidGlassCard>
+                </motion.div>
               )}
 
               {/* CGPA Card */}
               {cgpaData && (
-                <div className="frosted rounded-2xl p-6">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
-                      <GraduationCap className="h-5 w-5 text-success" />
+                <motion.div variants={statCardVariants}>
+                  <LiquidGlassCard>
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                        <GraduationCap className="h-5 w-5 text-success" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-foreground">CGPA</h3>
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground">CGPA</h3>
-                  </div>
-                  <div className="mb-2 font-display text-4xl font-bold text-success">
-                    {cgpaData.cgpa}/4.0
-                  </div>
-                  <p className="text-muted-foreground">
-                    {cgpaData.courses.length} courses
-                  </p>
-                </div>
+                    <div className="mb-2 font-display text-4xl font-bold text-success">
+                      <AnimatedNumber value={cgpaData.cgpa} decimals={2} suffix="/4.0" />
+                    </div>
+                    <p className="text-muted-foreground">
+                      {cgpaData.courses.length} courses
+                    </p>
+                  </LiquidGlassCard>
+                </motion.div>
               )}
 
               {/* Courses Card */}
               {activeSemester && (
-                <div className="frosted rounded-2xl p-6">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
-                      <BookMarked className="h-5 w-5 text-warning" />
+                <motion.div variants={statCardVariants}>
+                  <LiquidGlassCard>
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                        <BookMarked className="h-5 w-5 text-warning" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-foreground">Courses</h3>
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground">Courses</h3>
-                  </div>
-                  <div className="mb-2 font-display text-4xl font-bold text-warning">
-                    {activeSemester.courses.length}
-                  </div>
-                  <p className="text-muted-foreground">
-                    Active courses this semester
-                  </p>
-                </div>
+                    <div className="mb-2 font-display text-4xl font-bold text-warning">
+                      <AnimatedNumber value={activeSemester.courses.length} />
+                    </div>
+                    <p className="text-muted-foreground">
+                      Active courses this semester
+                    </p>
+                  </LiquidGlassCard>
+                </motion.div>
               )}
-            </div>
+            </motion.div>
           </>
         )}
       </div>

@@ -103,8 +103,8 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
         </div>
       </nav>
 
-      {/* Mobile bottom tab bar */}
-      <nav className="frosted fixed inset-x-3 bottom-3 z-10 rounded-2xl px-1 py-1 sm:hidden">
+      {/* Mobile bottom tab bar - kept on the plain glass look, not the liquid bevel */}
+      <nav className="frosted frosted-no-bevel fixed inset-x-3 bottom-3 z-10 rounded-2xl px-1 py-1 sm:hidden">
         <div className="flex items-center justify-between">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;

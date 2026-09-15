@@ -3,14 +3,21 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { motion, type Variants } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectNative } from "@/components/ui/select-native";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes } from "@/lib/attendanceUtils";
+
+const statCardVariants: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } },
+};
 import {
   Plus,
   X,
@@ -276,8 +283,13 @@ function AttendanceContent() {
           <>
             {/* Statistics */}
             {stats && (
-              <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div className="frosted rounded-2xl p-6">
+              <motion.div
+                className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4"
+                initial="hidden"
+                animate="show"
+                variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+              >
+                <motion.div variants={statCardVariants} className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Cumulative Attendance
                   </h3>
@@ -286,29 +298,29 @@ function AttendanceContent() {
                       stats.attendancePercentage >= 80 ? "text-success" : "text-destructive"
                     }`}
                   >
-                    {stats.attendancePercentage}%
+                    <AnimatedNumber value={stats.attendancePercentage} suffix="%" />
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="frosted rounded-2xl p-6">
+                <motion.div variants={statCardVariants} className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Hours Attended
                   </h3>
                   <p className="font-mono text-3xl font-bold text-success">
                     {stats.attendedHours}/{stats.totalHours}
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="frosted rounded-2xl p-6">
+                <motion.div variants={statCardVariants} className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Hours You Can Still Miss
                   </h3>
                   <p className="font-mono text-3xl font-bold text-warning">
-                    {stats.leavesAvailable}h
+                    <AnimatedNumber value={stats.leavesAvailable} suffix="h" />
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="frosted rounded-2xl p-6">
+                <motion.div variants={statCardVariants} className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Status
                   </h3>
@@ -329,8 +341,8 @@ function AttendanceContent() {
                       </>
                     )}
                   </p>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             )}
 
             {/* Per-Subject Leave Balance */}

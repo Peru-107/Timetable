@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,11 @@ interface AttendanceRecord {
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const dayCardVariants: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
+};
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
@@ -639,58 +645,76 @@ function TimetableContent() {
           )}
         </div>
 
-        {duplicateGroups.length > 0 && (
-          <div className="frosted-inset mb-8 rounded-2xl border border-destructive/40 p-4 text-sm">
-            <p className="font-semibold text-destructive">
-              Duplicate classes found - these are being counted twice in your attendance
-              totals and credit hours:
-            </p>
-            <ul className="mt-2 list-inside list-disc text-foreground">
-              {duplicateGroups.map((group, i) => {
-                const e = group[0];
-                return (
-                  <li key={i}>
-                    {e.course.name} on {DAYS[e.dayOfWeek]} {formatTime12h(e.startTime)}-
-                    {formatTime12h(e.endTime)} (appears {group.length} times)
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="mt-2 text-muted-foreground">
-              Delete the extra one below using its trash icon, then edit that course&apos;s
-              credit hours if needed.
-            </p>
-          </div>
-        )}
-
-        {mergeableGroups.length > 0 && (
-          <div className="frosted-inset mb-8 rounded-2xl border border-warning/40 p-4 text-sm">
-            <p className="font-semibold text-warning">
-              These back-to-back classes look like one continuous session split into
-              separate hours:
-            </p>
-            <ul className="mt-2 list-inside list-disc text-foreground">
-              {mergeableGroups.map((group, i) => (
-                <li key={i}>
-                  {group[0].course.name} on {DAYS[group[0].dayOfWeek]}{" "}
-                  {formatTime12h(group[0].startTime)}-
-                  {formatTime12h(group[group.length - 1].endTime)} (currently {group.length}{" "}
-                  separate entries)
-                </li>
-              ))}
-            </ul>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="mt-3"
-              onClick={handleMergeAdjacent}
-              disabled={isMergingAdjacent}
+        <AnimatePresence initial={false}>
+          {duplicateGroups.length > 0 && (
+            <motion.div
+              key="duplicate-banner"
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: "auto", marginBottom: 32 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="frosted-inset overflow-hidden rounded-2xl border border-destructive/40 p-4 text-sm"
             >
-              {isMergingAdjacent ? "Merging..." : "Merge Now"}
-            </Button>
-          </div>
-        )}
+              <p className="font-semibold text-destructive">
+                Duplicate classes found - these are being counted twice in your attendance
+                totals and credit hours:
+              </p>
+              <ul className="mt-2 list-inside list-disc text-foreground">
+                {duplicateGroups.map((group, i) => {
+                  const e = group[0];
+                  return (
+                    <li key={i}>
+                      {e.course.name} on {DAYS[e.dayOfWeek]} {formatTime12h(e.startTime)}-
+                      {formatTime12h(e.endTime)} (appears {group.length} times)
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-2 text-muted-foreground">
+                Delete the extra one below using its trash icon, then edit that course&apos;s
+                credit hours if needed.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence initial={false}>
+          {mergeableGroups.length > 0 && (
+            <motion.div
+              key="merge-banner"
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: "auto", marginBottom: 32 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="frosted-inset overflow-hidden rounded-2xl border border-warning/40 p-4 text-sm"
+            >
+              <p className="font-semibold text-warning">
+                These back-to-back classes look like one continuous session split into
+                separate hours:
+              </p>
+              <ul className="mt-2 list-inside list-disc text-foreground">
+                {mergeableGroups.map((group, i) => (
+                  <li key={i}>
+                    {group[0].course.name} on {DAYS[group[0].dayOfWeek]}{" "}
+                    {formatTime12h(group[0].startTime)}-
+                    {formatTime12h(group[group.length - 1].endTime)} (currently {group.length}{" "}
+                    separate entries)
+                  </li>
+                ))}
+              </ul>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={handleMergeAdjacent}
+                disabled={isMergingAdjacent}
+              >
+                {isMergingAdjacent ? "Merging..." : "Merge Now"}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {hasNoSemesters ? (
           <NoSemesterState />
@@ -1018,25 +1042,31 @@ function TimetableContent() {
                 one of six identical "No classes" cards, so it collapses to a
                 single compact row; only Today and days that actually have
                 something scheduled get the full card treatment. */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
+            <motion.div
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7"
+              initial="hidden"
+              animate="show"
+              variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+            >
               {DAYS.map((day, dayIndex) => {
                 const dayEntries = entriesByDay[dayIndex];
                 const isToday = dayIndex === todayDayIndex;
 
                 if (dayEntries.length === 0 && !isToday) {
                   return (
-                    <div
+                    <motion.div
                       key={dayIndex}
+                      variants={dayCardVariants}
                       className="frosted-inset flex items-center justify-between rounded-xl px-4 py-2.5 text-sm"
                     >
                       <span className="font-medium text-foreground">{day}</span>
                       <span className="text-muted-foreground">No classes</span>
-                    </div>
+                    </motion.div>
                   );
                 }
 
                 return (
-                  <div key={dayIndex} className="frosted rounded-2xl p-4">
+                  <motion.div key={dayIndex} variants={dayCardVariants} className="frosted rounded-2xl p-4">
                     <h3 className="mb-4 flex items-center justify-center gap-2 font-semibold text-foreground">
                       {day}
                       {isToday && (
@@ -1086,10 +1116,10 @@ function TimetableContent() {
                         ))
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           </>
         )}
       </div>

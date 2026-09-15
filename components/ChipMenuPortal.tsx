@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion } from "motion/react";
 
 export interface ChipMenuItem {
   label: string;
@@ -111,9 +112,12 @@ export function ChipMenuPortal({ open, anchorRef, items, onClose }: ChipMenuPort
   if (!open || !pos || typeof document === "undefined") return null;
 
   return createPortal(
-    <div
+    <motion.div
       ref={menuRef}
       role="menu"
+      initial={{ opacity: 0, scale: 0.95, y: -4 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.12, ease: "easeOut" }}
       className="frosted fixed z-50 w-48 overflow-hidden rounded-xl p-1 shadow-lg"
       style={{ top: pos.top, left: pos.left }}
     >
@@ -131,7 +135,7 @@ export function ChipMenuPortal({ open, anchorRef, items, onClose }: ChipMenuPort
           <item.icon className="h-4 w-4" /> {item.label}
         </button>
       ))}
-    </div>,
+    </motion.div>,
     document.body
   );
 }
