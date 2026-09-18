@@ -24,6 +24,7 @@ import {
 } from "recharts";
 import { computeGradeFromMarks, GRADE_BANDS } from "@/lib/gradeScale";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { SHOW_CHARTS } from "@/lib/featureFlags";
 
 const fadeUpVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
@@ -405,7 +406,7 @@ function GradesContent() {
             </AnimatePresence>
 
             {/* Chart */}
-            {cgpaData && cgpaData.courses.length > 0 && (
+            {SHOW_CHARTS && cgpaData && cgpaData.courses.length > 0 && (
               <motion.div
                 initial="hidden"
                 animate="show"

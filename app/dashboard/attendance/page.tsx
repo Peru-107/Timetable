@@ -29,6 +29,7 @@ import {
   Download,
 } from "lucide-react";
 import { toCsv, downloadCsv } from "@/lib/csv";
+import { SHOW_CHARTS } from "@/lib/featureFlags";
 import {
   BarChart,
   Bar,
@@ -401,53 +402,33 @@ function AttendanceContent() {
 
             {/* Per-Subject Leave Balance */}
             {statsByCourse.length > 0 && (
-              <div className="frosted mb-8 overflow-hidden rounded-2xl">
-                <div className="px-6 py-4">
-                  <h2 className="text-xl font-semibold text-foreground">
-                    Per-Subject Leave Balance
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Each subject has its own semester-long hour total (weekly schedule ×
-                    weeks in the semester) and its own 80% requirement.
-                  </p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="text-left text-sm font-semibold text-muted-foreground">
-                        <th className="px-6 py-3">Subject</th>
-                        <th className="px-6 py-3">Attendance</th>
-                        <th className="px-6 py-3">Classes You Can Still Miss</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {statsByCourse.map((c) => (
-                        <tr key={c.courseId}>
-                          <td className="px-6 py-4 text-sm font-medium text-foreground">
-                            {c.courseName}
-                          </td>
-                          <td className="px-6 py-4 font-mono text-sm text-foreground">
-                            {c.attendancePercentage}%
-                            <span className="ml-1 font-sans text-xs text-muted-foreground">
-                              ({c.attendedHours}h / {c.totalHours}h)
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`frosted-inset flex h-8 min-w-8 items-center justify-center rounded-full px-2 font-mono text-sm font-bold ${RISK_STYLE[c.riskLevel]}`}
-                              >
-                                {c.riskLevel === "critical" ? "!" : c.classesAvailableToMiss}
-                              </span>
-                              <span className={`text-xs ${RISK_STYLE[c.riskLevel]}`}>
-                                {riskMessage(c)}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div className="frosted mb-8 rounded-2xl p-6">
+                <h2 className="text-xl font-semibold text-foreground">
+                  Per-Subject Leave Balance
+                </h2>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Each subject has its own semester-long hour total (weekly schedule × weeks
+                  in the semester) and its own 80% requirement.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {statsByCourse.map((c) => (
+                    <div key={c.courseId} className="frosted-inset rounded-xl p-4">
+                      <p className="truncate font-medium text-foreground">{c.courseName}</p>
+                      <p className="mt-1 font-mono text-sm text-foreground">
+                        {c.attendancePercentage}%{" "}
+                        <span className="font-sans text-xs text-muted-foreground">
+                          ({c.attendedHours}h / {c.totalHours}h)
+                        </span>
+                      </p>
+                      <div className="mt-3 flex items-baseline gap-1.5">
+                        <span className={`font-mono text-2xl font-bold ${RISK_STYLE[c.riskLevel]}`}>
+                          {c.hoursAvailableToMiss}h
+                        </span>
+                        <span className="text-xs text-muted-foreground">you can still miss</span>
+                      </div>
+                      <p className={`mt-1 text-xs ${RISK_STYLE[c.riskLevel]}`}>{riskMessage(c)}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -556,7 +537,7 @@ function AttendanceContent() {
             )}
 
             {/* Chart */}
-            {chartData.length > 0 && (
+            {SHOW_CHARTS && chartData.length > 0 && (
               <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="mb-1 text-xl font-semibold text-foreground">
                   Attendance by Subject
