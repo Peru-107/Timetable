@@ -38,11 +38,23 @@ export async function POST(req: NextRequest) {
 
     const { name, startDate, endDate, weeks } = await req.json();
 
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: "Semester name is required" }, { status: 400 });
+    }
+    const parsedStart = new Date(startDate);
+    const parsedEnd = new Date(endDate);
+    if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
+      return NextResponse.json({ error: "Valid start and end dates are required" }, { status: 400 });
+    }
+    if (parsedEnd <= parsedStart) {
+      return NextResponse.json({ error: "End date must be after start date" }, { status: 400 });
+    }
+
     const semester = await prisma.semester.create({
       data: {
         name,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: parsedStart,
+        endDate: parsedEnd,
         weeks: weeks != null ? Math.max(1, Math.round(weeks)) : undefined,
         userId: session.user.id,
       },
@@ -77,12 +89,25 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Semester not found" }, { status: 404 });
     }
 
+    if (name !== undefined && !name.trim()) {
+      return NextResponse.json({ error: "Semester name is required" }, { status: 400 });
+    }
+
+    const parsedStart = startDate ? new Date(startDate) : existing.startDate;
+    const parsedEnd = endDate ? new Date(endDate) : existing.endDate;
+    if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
+      return NextResponse.json({ error: "Valid start and end dates are required" }, { status: 400 });
+    }
+    if (parsedEnd <= parsedStart) {
+      return NextResponse.json({ error: "End date must be after start date" }, { status: 400 });
+    }
+
     const updated = await prisma.semester.update({
       where: { id },
       data: {
         name,
-        startDate: startDate ? new Date(startDate) : undefined,
-        endDate: endDate ? new Date(endDate) : undefined,
+        startDate: startDate ? parsedStart : undefined,
+        endDate: endDate ? parsedEnd : undefined,
         weeks: weeks != null ? Math.max(1, Math.round(weeks)) : undefined,
       },
     });

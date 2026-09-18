@@ -3,6 +3,20 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * A non-positive creditHours doesn't just look wrong - it flips the sign of
+ * that course's contribution to calculateCGPA's weighted average (or can
+ * zero out the whole denominator), silently producing a nonsensical CGPA
+ * for every course, not just this one.
+ */
+function validateCreditHours(creditHours: unknown): string | null {
+  if (creditHours === undefined || creditHours === null) return null;
+  if (typeof creditHours !== "number" || !Number.isFinite(creditHours) || creditHours <= 0) {
+    return "Credit hours must be a positive number";
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -42,6 +56,14 @@ export async function POST(req: NextRequest) {
 
     const { name, code, creditHours, semesterId } = await req.json();
 
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: "Course name is required" }, { status: 400 });
+    }
+    const creditError = validateCreditHours(creditHours);
+    if (creditError) {
+      return NextResponse.json({ error: creditError }, { status: 400 });
+    }
+
     const course = await prisma.course.create({
       data: {
         name,
@@ -78,6 +100,14 @@ export async function PATCH(req: NextRequest) {
     });
     if (!existing) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
+
+    if (name !== undefined && !name.trim()) {
+      return NextResponse.json({ error: "Course name is required" }, { status: 400 });
+    }
+    const creditError = validateCreditHours(creditHours);
+    if (creditError) {
+      return NextResponse.json({ error: creditError }, { status: 400 });
     }
 
     const updated = await prisma.course.update({

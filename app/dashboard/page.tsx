@@ -21,6 +21,7 @@ import {
   Pencil,
   Trash2,
   X,
+  AlertCircle,
 } from "lucide-react";
 
 interface Semester {
@@ -73,6 +74,7 @@ export default function DashboardPage() {
   });
   const [isSavingSemester, setIsSavingSemester] = useState(false);
   const [isDeletingSemester, setIsDeletingSemester] = useState(false);
+  const [semesterError, setSemesterError] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -149,6 +151,7 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!activeSemester) return;
     setIsSavingSemester(true);
+    setSemesterError("");
     try {
       const res = await fetch("/api/semesters", {
         method: "PATCH",
@@ -158,9 +161,13 @@ export default function DashboardPage() {
       if (res.ok) {
         setShowEditSemester(false);
         await fetchSemesters();
+      } else {
+        const data = await res.json().catch(() => null);
+        setSemesterError(data?.error || "Couldn't save changes. Please try again.");
       }
     } catch (error) {
       console.error("Error updating semester:", error);
+      setSemesterError("Couldn't save changes. Please try again.");
     } finally {
       setIsSavingSemester(false);
     }
@@ -223,7 +230,14 @@ export default function DashboardPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => (showEditSemester ? setShowEditSemester(false) : startEditSemester())}
+                onClick={() => {
+                  setSemesterError("");
+                  if (showEditSemester) {
+                    setShowEditSemester(false);
+                  } else {
+                    startEditSemester();
+                  }
+                }}
                 aria-label="Edit semester"
               >
                 {showEditSemester ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
@@ -248,6 +262,12 @@ export default function DashboardPage() {
               onSubmit={handleSaveSemester}
               className="frosted mt-4 flex flex-wrap items-end gap-3 rounded-2xl p-4"
             >
+              {semesterError && (
+                <div className="frosted-inset flex w-full items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {semesterError}
+                </div>
+              )}
               <div className="min-w-[160px] flex-1">
                 <label className="mb-2 block text-sm font-medium text-foreground">Name</label>
                 <Input

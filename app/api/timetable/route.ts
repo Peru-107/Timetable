@@ -4,6 +4,29 @@ import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { mergeAdjacentEntriesForCourse } from "@/lib/mergeAdjacentEntries";
 
+/**
+ * Without this, a bad dayOfWeek (e.g. from a malformed request) silently
+ * creates an entry the Timetable UI can never show or delete - it only ever
+ * renders days 0-6 - while attendance stats keep counting its hours forever.
+ * An inverted time range hits the same "invisible corruption" pattern: it
+ * doesn't error, it just silently becomes a fake 1-hour class via
+ * computeHoursFromTimes's fallback (lib/attendanceUtils.ts).
+ */
+function validateEntryTimes(dayOfWeek: unknown, startTime: string, endTime: string): string | null {
+  if (typeof dayOfWeek !== "number" || !Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
+    return "Day of week must be between Sunday (0) and Saturday (6)";
+  }
+  const [sh, sm] = startTime.split(":").map(Number);
+  const [eh, em] = endTime.split(":").map(Number);
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) {
+    return "Start and end time are required";
+  }
+  if (eh * 60 + em <= sh * 60 + sm) {
+    return "End time must be after start time";
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -42,6 +65,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { courseId, semesterId, dayOfWeek, startTime, endTime, room, instructor } = await req.json();
+
+    const validationError = validateEntryTimes(dayOfWeek, startTime, endTime);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
+    }
 
     const entry = await prisma.timetableEntry.create({
       data: {
@@ -91,6 +119,11 @@ export async function PATCH(req: NextRequest) {
     });
     if (!existing) {
       return NextResponse.json({ error: "Timetable entry not found" }, { status: 404 });
+    }
+
+    const validationError = validateEntryTimes(dayOfWeek, startTime, endTime);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     const updated = await prisma.timetableEntry.update({

@@ -112,6 +112,7 @@ function TimetableContent() {
     instructor: "",
   });
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [entryError, setEntryError] = useState("");
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -122,11 +123,13 @@ function TimetableContent() {
     { dayOfWeek: 1, startTime: "09:00", endTime: "10:00" },
   ]);
   const [isAddingCourse, setIsAddingCourse] = useState(false);
+  const [addCourseError, setAddCourseError] = useState("");
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [editCourseName, setEditCourseName] = useState("");
   const [editCourseCredits, setEditCourseCredits] = useState(3);
   const [editCourseSchedule, setEditCourseSchedule] = useState<ScheduleRow[]>([]);
   const [isSavingCourseEdit, setIsSavingCourseEdit] = useState(false);
+  const [editCourseError, setEditCourseError] = useState("");
   const [isMergingAdjacent, setIsMergingAdjacent] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [subjectsInput, setSubjectsInput] = useState("");
@@ -221,10 +224,12 @@ function TimetableContent() {
     });
     setEditingEntryId(null);
     setShowForm(false);
+    setEntryError("");
   };
 
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEntryError("");
     try {
       const res = await fetch("/api/timetable", {
         method: editingEntryId ? "PATCH" : "POST",
@@ -237,9 +242,13 @@ function TimetableContent() {
       if (res.ok) {
         resetEntryForm();
         fetchTimetable();
+      } else {
+        const data = await res.json().catch(() => null);
+        setEntryError(data?.error || "Couldn't save this class. Please try again.");
       }
     } catch (error) {
       console.error("Error saving timetable entry:", error);
+      setEntryError("Couldn't save this class. Please try again.");
     }
   };
 
@@ -276,6 +285,7 @@ function TimetableContent() {
     e.preventDefault();
     if (!newCourseName.trim()) return;
     setIsAddingCourse(true);
+    setAddCourseError("");
     try {
       const res = await fetch("/api/courses", {
         method: "POST",
@@ -288,8 +298,9 @@ function TimetableContent() {
       });
       if (res.ok) {
         const created = await res.json();
+        const rowFailures: string[] = [];
         for (const row of scheduleRowsWithTimes) {
-          await fetch("/api/timetable", {
+          const rowRes = await fetch("/api/timetable", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -300,16 +311,29 @@ function TimetableContent() {
               endTime: row.endTime,
             }),
           });
+          if (!rowRes.ok) {
+            const rowData = await rowRes.json().catch(() => null);
+            rowFailures.push(`${DAYS[row.dayOfWeek]} ${row.startTime}-${row.endTime}: ${rowData?.error || "couldn't save"}`);
+          }
         }
         setNewCourseName("");
         setNewCourseCredits(3);
         setNewCourseSchedule([{ dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }]);
-        setShowAddCourseForm(false);
+        if (rowFailures.length === 0) setShowAddCourseForm(false);
         fetchCourses();
         if (scheduleRowsWithTimes.length > 0) fetchTimetable();
+        if (rowFailures.length > 0) {
+          setAddCourseError(
+            `Course saved, but these schedule rows didn't: ${rowFailures.join("; ")}`
+          );
+        }
+      } else {
+        const data = await res.json().catch(() => null);
+        setAddCourseError(data?.error || "Couldn't add this course. Please try again.");
       }
     } catch (error) {
       console.error("Error adding course:", error);
+      setAddCourseError("Couldn't add this course. Please try again.");
     } finally {
       setIsAddingCourse(false);
     }
@@ -323,6 +347,7 @@ function TimetableContent() {
 
   const startEditCourse = (course: Course) => {
     setShowAddCourseForm(false);
+    setEditCourseError("");
     setEditingCourseId(course.id);
     setEditCourseName(course.name);
     setEditCourseCredits(course.creditHours);
@@ -341,6 +366,7 @@ function TimetableContent() {
   const handleSaveCourseEdit = async (id: string) => {
     if (!editCourseName.trim()) return;
     setIsSavingCourseEdit(true);
+    setEditCourseError("");
     try {
       const creditHours =
         editScheduleRowsWithTimes.length > 0 ? editScheduleCreditHours : editCourseCredits;
@@ -359,8 +385,9 @@ function TimetableContent() {
         for (const entry of currentEntries) {
           await fetch(`/api/timetable?id=${entry.id}`, { method: "DELETE" });
         }
+        const rowFailures: string[] = [];
         for (const row of editScheduleRowsWithTimes) {
-          await fetch("/api/timetable", {
+          const rowRes = await fetch("/api/timetable", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -373,14 +400,25 @@ function TimetableContent() {
               instructor: row.instructor,
             }),
           });
+          if (!rowRes.ok) {
+            const rowData = await rowRes.json().catch(() => null);
+            rowFailures.push(`${DAYS[row.dayOfWeek]} ${row.startTime}-${row.endTime}: ${rowData?.error || "couldn't save"}`);
+          }
         }
-        setEditingCourseId(null);
+        if (rowFailures.length === 0) setEditingCourseId(null);
         fetchCourses();
         fetchTimetable();
         fetchTodayAttendance();
+        if (rowFailures.length > 0) {
+          setEditCourseError(`Some schedule rows didn't save: ${rowFailures.join("; ")}`);
+        }
+      } else {
+        const data = await res.json().catch(() => null);
+        setEditCourseError(data?.error || "Couldn't save changes. Please try again.");
       }
     } catch (error) {
       console.error("Error updating course:", error);
+      setEditCourseError("Couldn't save changes. Please try again.");
     } finally {
       setIsSavingCourseEdit(false);
     }
@@ -735,6 +773,7 @@ function TimetableContent() {
                     variant={showAddCourseForm ? "outline" : "default"}
                     onClick={() => {
                       setEditingCourseId(null);
+                      setAddCourseError("");
                       setShowAddCourseForm((v) => !v);
                     }}
                   >
@@ -774,6 +813,12 @@ function TimetableContent() {
               {editingCourseId && (
                 <div className="frosted-inset space-y-4 rounded-2xl p-4">
                   <h3 className="text-sm font-semibold text-foreground">Edit Course</h3>
+                  {editCourseError && (
+                    <div className="frosted flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      {editCourseError}
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="min-w-[200px] flex-1">
                       <label className="mb-2 block text-sm font-medium text-foreground">
@@ -815,7 +860,14 @@ function TimetableContent() {
                     >
                       {isSavingCourseEdit ? "Saving..." : "Save Changes"}
                     </Button>
-                    <Button type="button" variant="outline" onClick={() => setEditingCourseId(null)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingCourseId(null);
+                        setEditCourseError("");
+                      }}
+                    >
                       Cancel
                     </Button>
                   </div>
@@ -824,6 +876,12 @@ function TimetableContent() {
 
               {showAddCourseForm && (
                 <form onSubmit={handleAddCourse} className="space-y-4">
+                  {addCourseError && (
+                    <div className="frosted-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      {addCourseError}
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="min-w-[200px] flex-1">
                       <label className="mb-2 block text-sm font-medium text-foreground">
@@ -938,6 +996,12 @@ function TimetableContent() {
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
                   {editingEntryId ? "Edit Class" : "Add Class"}
                 </h2>
+                {entryError && (
+                  <div className="frosted-inset mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {entryError}
+                  </div>
+                )}
                 <form onSubmit={handleAddEntry} className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
