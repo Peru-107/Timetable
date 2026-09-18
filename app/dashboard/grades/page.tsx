@@ -10,7 +10,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, GraduationCap, Pencil, Trash2, Check } from "lucide-react";
+import { Plus, X, GraduationCap, Pencil, Trash2, Check, Calculator } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -20,6 +20,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { computeGradeFromMarks, GRADE_BANDS } from "@/lib/gradeScale";
 
 interface Grade {
   id: string;
@@ -79,6 +80,9 @@ function GradesContent() {
     teeMarks: "",
     teeMax: "50",
   });
+  const [whatIfId, setWhatIfId] = useState<string | null>(null);
+  const [whatIfTee, setWhatIfTee] = useState("");
+  const [whatIfTarget, setWhatIfTarget] = useState(GRADE_BANDS[0].letter);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -184,6 +188,16 @@ function GradesContent() {
     } catch (error) {
       console.error("Error deleting grade:", error);
     }
+  };
+
+  const toggleWhatIf = (g: Grade) => {
+    if (whatIfId === g.id) {
+      setWhatIfId(null);
+      return;
+    }
+    setWhatIfId(g.id);
+    setWhatIfTee(g.teeMarks != null ? String(g.teeMarks) : "");
+    setWhatIfTarget(GRADE_BANDS[0].letter);
   };
 
   const getGradeColor = (grade: number) => {
@@ -392,7 +406,7 @@ function GradesContent() {
                         </td>
                       </tr>
                     ) : (
-                      grades.map((g) =>
+                      grades.flatMap((g) => [
                         editingId === g.id ? (
                           <tr key={g.id} className="frosted-inset">
                             <td className="px-6 py-4 text-sm font-medium text-foreground">
@@ -507,6 +521,18 @@ function GradesContent() {
                               <div className="flex items-center gap-2">
                                 <button
                                   type="button"
+                                  onClick={() => toggleWhatIf(g)}
+                                  className={
+                                    whatIfId === g.id
+                                      ? "text-primary"
+                                      : "text-muted-foreground hover:text-foreground"
+                                  }
+                                  aria-label="What-if calculator"
+                                >
+                                  <Calculator className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => startEditGrade(g)}
                                   className="text-muted-foreground hover:text-foreground"
                                   aria-label="Edit grade"
@@ -524,8 +550,19 @@ function GradesContent() {
                               </div>
                             </td>
                           </tr>
-                        )
-                      )
+                        ),
+                        whatIfId === g.id ? (
+                          <WhatIfRow
+                            key={`${g.id}-whatif`}
+                            grade={g}
+                            hypotheticalTee={whatIfTee}
+                            onHypotheticalTeeChange={setWhatIfTee}
+                            target={whatIfTarget}
+                            onTargetChange={setWhatIfTarget}
+                            getGradeColor={getGradeColor}
+                          />
+                        ) : null,
+                      ])
                     )}
                   </tbody>
                 </table>
@@ -535,5 +572,118 @@ function GradesContent() {
         )}
       </div>
     </div>
+  );
+}
+
+function WhatIfRow({
+  grade: g,
+  hypotheticalTee,
+  onHypotheticalTeeChange,
+  target,
+  onTargetChange,
+  getGradeColor,
+}: {
+  grade: Grade;
+  hypotheticalTee: string;
+  onHypotheticalTeeChange: (value: string) => void;
+  target: string;
+  onTargetChange: (value: string) => void;
+  getGradeColor: (grade: number) => string;
+}) {
+  const hasTee = g.teeMax > 0;
+  const ica = g.icaMarks ?? 0;
+  const teeInput = Math.min(Math.max(parseFloat(hypotheticalTee) || 0, 0), g.teeMax);
+  const projected = computeGradeFromMarks(ica, g.icaMax, teeInput, g.teeMax);
+
+  const targetBand = GRADE_BANDS.find((b) => b.letter === target) ?? GRADE_BANDS[0];
+  const totalMax = g.icaMax + g.teeMax;
+  const requiredTotal = (targetBand.minPercent / 100) * totalMax;
+  const rawRequiredTee = Math.ceil(requiredTotal - ica);
+  const requiredTee = Math.max(0, rawRequiredTee);
+  const feasible = hasTee && requiredTee <= g.teeMax;
+  const alreadyThere = rawRequiredTee <= 0;
+
+  return (
+    <tr className="frosted-inset">
+      <td colSpan={8} className="px-6 py-5">
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div>
+            <p className="mb-2 text-sm font-semibold text-foreground">
+              If I score this on the TEE...
+            </p>
+            {hasTee ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max={g.teeMax}
+                    className="h-9 w-24"
+                    value={hypotheticalTee}
+                    onChange={(e) => onHypotheticalTeeChange(e.target.value)}
+                    placeholder="0"
+                  />
+                  <span className="text-sm text-muted-foreground">/ {g.teeMax}</span>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Projected:{" "}
+                  <span className={`font-semibold ${getGradeColor(projected.gradePoint)}`}>
+                    {projected.letterGrade}
+                  </span>{" "}
+                  ({projected.percentage}%)
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                This course has no TEE component (ICA-only).
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-semibold text-foreground">
+              TEE needed for a target grade
+            </p>
+            {hasTee ? (
+              <>
+                <SelectNative
+                  value={target}
+                  onChange={(e) => onTargetChange(e.target.value)}
+                  className="h-9"
+                >
+                  {GRADE_BANDS.filter((b) => b.letter !== "F").map((b) => (
+                    <option key={b.letter} value={b.letter}>
+                      {b.letter}
+                    </option>
+                  ))}
+                </SelectNative>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {alreadyThere ? (
+                    <>
+                      Already locked in with ICA alone -{" "}
+                      <span className="font-semibold text-foreground">0</span> / {g.teeMax}{" "}
+                      needed on TEE.
+                    </>
+                  ) : feasible ? (
+                    <>
+                      Need at least{" "}
+                      <span className="font-semibold text-foreground">{requiredTee}</span> /{" "}
+                      {g.teeMax} on TEE (ICA locked at {ica}/{g.icaMax}).
+                    </>
+                  ) : (
+                    <span className="text-destructive">
+                      Not reachable - even a perfect TEE score tops out below {targetBand.letter}.
+                    </span>
+                  )}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No TEE to solve for on an ICA-only course.
+              </p>
+            )}
+          </div>
+        </div>
+      </td>
+    </tr>
   );
 }
