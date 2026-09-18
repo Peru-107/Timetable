@@ -32,10 +32,12 @@ import { toCsv, downloadCsv } from "@/lib/csv";
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
 
@@ -80,6 +82,12 @@ const RISK_STYLE: Record<AttendanceRiskLevel, string> = {
   safe: "text-success",
   warning: "text-warning",
   critical: "text-destructive",
+};
+
+const RISK_FILL: Record<AttendanceRiskLevel, string> = {
+  safe: "var(--success)",
+  warning: "var(--warning)",
+  critical: "var(--destructive)",
 };
 
 function riskMessage(c: CourseAttendanceStat): string {
@@ -288,12 +296,11 @@ function AttendanceContent() {
     return <PageLoader />;
   }
 
-  const chartData = [
-    {
-      name: "Attendance",
-      percentage: stats?.attendancePercentage || 0,
-    },
-  ];
+  const chartData = statsByCourse.map((c) => ({
+    name: c.courseName,
+    percentage: c.attendancePercentage,
+    risk: c.riskLevel,
+  }));
 
   return (
     <div className="min-h-screen bg-background pb-12">
@@ -549,18 +556,39 @@ function AttendanceContent() {
             )}
 
             {/* Chart */}
-            {stats && (
+            {chartData.length > 0 && (
               <div className="frosted mb-8 rounded-2xl p-6">
-                <h2 className="mb-4 text-xl font-semibold text-foreground">
-                  Attendance Overview
+                <h2 className="mb-1 text-xl font-semibold text-foreground">
+                  Attendance by Subject
                 </h2>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Each bar is a subject's own attendance % - color shows how close it is to the
+                  80% line.
+                </p>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="name" stroke="var(--muted-foreground)" />
                     <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" />
-                    <Tooltip />
-                    <Bar dataKey="percentage" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+                    <Tooltip
+                      formatter={(value: number) => [`${value}%`, "Attendance"]}
+                      contentStyle={{
+                        background: "var(--card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "0.75rem",
+                      }}
+                    />
+                    <ReferenceLine
+                      y={80}
+                      stroke="var(--muted-foreground)"
+                      strokeDasharray="4 4"
+                      label={{ value: "80% required", position: "insideTopRight", fill: "var(--muted-foreground)", fontSize: 12 }}
+                    />
+                    <Bar dataKey="percentage" radius={[6, 6, 0, 0]}>
+                      {chartData.map((entry) => (
+                        <Cell key={entry.name} fill={RISK_FILL[entry.risk]} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
