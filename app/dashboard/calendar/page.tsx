@@ -11,8 +11,9 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { EventListItem } from "@/components/EventListItem";
+import { HolidayImportPanel } from "@/components/HolidayImportPanel";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, X, ChevronLeft, ChevronRight, Trash2, Upload } from "lucide-react";
 import {
   format,
   startOfMonth,
@@ -80,6 +81,7 @@ function CalendarContent() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showForm, setShowForm] = useState(false);
+  const [showHolidayImport, setShowHolidayImport] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [newEvent, setNewEvent] = useState(EMPTY_EVENT);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -223,17 +225,37 @@ function CalendarContent() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
           {semesterId && (
-            <Button onClick={() => (showForm ? resetForm() : setShowForm(true))}>
-              {showForm ? (
-                <>
-                  <X className="h-4 w-4" /> Cancel
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" /> Add Event
-                </>
+            <div className="flex items-center gap-2">
+              {!showForm && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowHolidayImport((v) => !v)}
+                >
+                  {showHolidayImport ? (
+                    <>
+                      <X className="h-4 w-4" /> Cancel
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" /> Import Holidays
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+              {!showHolidayImport && (
+                <Button onClick={() => (showForm ? resetForm() : setShowForm(true))}>
+                  {showForm ? (
+                    <>
+                      <X className="h-4 w-4" /> Cancel
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" /> Add Event
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
@@ -389,6 +411,15 @@ function CalendarContent() {
 
             {/* Sidebar */}
             <div>
+              {/* Holiday Import Panel */}
+              {showHolidayImport && semesterId && (
+                <HolidayImportPanel
+                  semesterId={semesterId}
+                  onImported={fetchEvents}
+                  onClose={() => setShowHolidayImport(false)}
+                />
+              )}
+
               {/* Add/Edit Event Form */}
               {showForm && (
                 <div className="frosted mb-6 rounded-2xl p-6">
