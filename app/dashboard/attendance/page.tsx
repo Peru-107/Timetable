@@ -60,6 +60,8 @@ interface AttendanceStats {
   leavesUsed: number;
 }
 
+type AttendanceRiskLevel = "safe" | "warning" | "critical";
+
 interface CourseAttendanceStat {
   courseId: string;
   courseName: string;
@@ -67,6 +69,28 @@ interface CourseAttendanceStat {
   attendedHours: number;
   leavesUsed: number;
   hoursAvailableToMiss: number;
+  attendancePercentage: number;
+  classesAvailableToMiss: number;
+  riskLevel: AttendanceRiskLevel;
+}
+
+const RISK_STYLE: Record<AttendanceRiskLevel, string> = {
+  safe: "text-success",
+  warning: "text-warning",
+  critical: "text-destructive",
+};
+
+function riskMessage(c: CourseAttendanceStat): string {
+  if (c.riskLevel === "critical") {
+    return "Already below 80% - attend every remaining class to recover";
+  }
+  if (c.classesAvailableToMiss === 0) {
+    return "Can't miss another class and stay at 80%";
+  }
+  if (c.classesAvailableToMiss === 1) {
+    return "1 class of slack left";
+  }
+  return `${c.classesAvailableToMiss} classes of slack left`;
 }
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
@@ -362,9 +386,8 @@ function AttendanceContent() {
                     <thead>
                       <tr className="text-left text-sm font-semibold text-muted-foreground">
                         <th className="px-6 py-3">Subject</th>
-                        <th className="px-6 py-3">Total Hours (Sem)</th>
-                        <th className="px-6 py-3">Attended</th>
-                        <th className="px-6 py-3">Hours You Can Still Miss</th>
+                        <th className="px-6 py-3">Attendance</th>
+                        <th className="px-6 py-3">Classes You Can Still Miss</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -374,13 +397,22 @@ function AttendanceContent() {
                             {c.courseName}
                           </td>
                           <td className="px-6 py-4 font-mono text-sm text-foreground">
-                            {c.totalHours}h
+                            {c.attendancePercentage}%
+                            <span className="ml-1 font-sans text-xs text-muted-foreground">
+                              ({c.attendedHours}h / {c.totalHours}h)
+                            </span>
                           </td>
-                          <td className="px-6 py-4 font-mono text-sm text-foreground">
-                            {c.attendedHours}h
-                          </td>
-                          <td className="px-6 py-4 font-mono text-sm font-semibold text-warning">
-                            {c.hoursAvailableToMiss}h
+                          <td className="px-6 py-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`frosted-inset flex h-8 min-w-8 items-center justify-center rounded-full px-2 font-mono text-sm font-bold ${RISK_STYLE[c.riskLevel]}`}
+                              >
+                                {c.riskLevel === "critical" ? "!" : c.classesAvailableToMiss}
+                              </span>
+                              <span className={`text-xs ${RISK_STYLE[c.riskLevel]}`}>
+                                {riskMessage(c)}
+                              </span>
+                            </div>
                           </td>
                         </tr>
                       ))}

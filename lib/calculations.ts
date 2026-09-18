@@ -76,6 +76,8 @@ export async function calculateAttendanceStats(
   };
 }
 
+export type AttendanceRiskLevel = "safe" | "warning" | "critical";
+
 export interface CourseAttendanceStat {
   courseId: string;
   courseName: string;
@@ -83,6 +85,21 @@ export interface CourseAttendanceStat {
   attendedHours: number;
   leavesUsed: number;
   hoursAvailableToMiss: number;
+  attendancePercentage: number;
+  /**
+   * hoursAvailableToMiss converted into whole class sessions, using this
+   * course's own average session length (its weekly hours / number of
+   * weekly meetings) - a raw hour figure doesn't tell a student whether
+   * they can skip tomorrow's lecture, since one course's "class" might be
+   * a 1-hour lecture and another's a 3-hour lab.
+   */
+  classesAvailableToMiss: number;
+  /**
+   * "critical" once already below 80% (missing more won't help - the fix
+   * is attending everything left), "warning" at 2 or fewer skippable
+   * classes remaining, "safe" otherwise.
+   */
+  riskLevel: AttendanceRiskLevel;
 }
 
 /**
@@ -132,6 +149,23 @@ export async function calculateAttendanceStatsByCourse(
     // course's required total the way an absence would.
 
     const hoursAvailableToMiss = Math.max(0, round2(totalHours * 0.2 - leavesUsed));
+    const attendancePercentage = totalHours > 0 ? round2((attendedHours / totalHours) * 100) : 0;
+
+    const sessionsPerWeek = course.timetableEntries.length;
+    const avgSessionHours = sessionsPerWeek > 0 ? weeklyHours / sessionsPerWeek : 0;
+    const classesAvailableToMiss =
+      avgSessionHours > 0 ? Math.floor(hoursAvailableToMiss / avgSessionHours) : 0;
+
+    // No attendance recorded yet reads as 0% - that's "no data", not a
+    // shortfall, so it must not trip the same "critical" as an actual
+    // sub-80% track record once classes have happened.
+    const hasRecords = attendedHours + leavesUsed > 0;
+    const riskLevel: AttendanceRiskLevel =
+      hasRecords && attendancePercentage < 80
+        ? "critical"
+        : classesAvailableToMiss <= 2
+          ? "warning"
+          : "safe";
 
     return {
       courseId: course.id,
@@ -140,6 +174,9 @@ export async function calculateAttendanceStatsByCourse(
       attendedHours: round2(attendedHours),
       leavesUsed: round2(leavesUsed),
       hoursAvailableToMiss,
+      attendancePercentage,
+      classesAvailableToMiss,
+      riskLevel,
     };
   });
 }
