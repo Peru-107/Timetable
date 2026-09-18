@@ -9,18 +9,28 @@ import {
   ClipboardCheck,
   GraduationCap,
   CalendarClock,
+  BookOpen,
   User,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChipMenuPortal, type ChipMenuItem } from "@/components/ChipMenuPortal";
 
+// The mobile bottom tab bar stays capped at these 5 - UX research caps a
+// touch-friendly tab bar at 3-5 items before touch targets and spatial
+// memory both suffer, so a 6th destination (Study) doesn't belong here.
+// It gets a desktop-only link below instead, plus an entry point on the
+// Overview hub for mobile - never a link buried only inside another page.
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/timetable", label: "Timetable", icon: CalendarDays },
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck },
   { href: "/dashboard/grades", label: "Grades", icon: GraduationCap },
   { href: "/dashboard/calendar", label: "Calendar", icon: CalendarClock },
+];
+
+const DESKTOP_ONLY_NAV_ITEMS = [
+  { href: "/dashboard/study", label: "Study", icon: BookOpen },
 ];
 
 export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
@@ -49,6 +59,22 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
           <div className="hidden flex-wrap items-center gap-2 sm:flex">
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
               const active = pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={withSemester(href)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-foreground transition-colors",
+                    active ? "frosted-inset text-primary" : "hover:bg-black/5"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+            {DESKTOP_ONLY_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+              const active = pathname.startsWith(href);
               return (
                 <Link
                   key={href}

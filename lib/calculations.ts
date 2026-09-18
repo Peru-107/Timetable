@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { computeHoursFromTimes } from "./attendanceUtils";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const dateKeyUTC = (d: Date) => d.toISOString().slice(0, 10);
 
 interface AttendanceStats {
   totalHours: number;
@@ -10,6 +11,70 @@ interface AttendanceStats {
   requiredHours: number;
   leavesAvailable: number;
   leavesUsed: number;
+  currentStreakDays: number;
+}
+
+/**
+ * Consecutive days, walking back from today, where every scheduled class
+ * that day had no absence marked - skipping days with no class scheduled
+ * at all (a day off doesn't break a streak) and not counting today against
+ * it until something is actually marked (the day isn't over yet, so an
+ * empty "today" shouldn't look like a broken streak). A record's mere
+ * presence (including CANCELLED) counts as a win for that day - a
+ * cancelled class isn't the student's fault.
+ */
+function computeCurrentStreak(
+  timetableEntries: Array<{ dayOfWeek: number }>,
+  attendanceRecords: Array<{ date: Date; status: string }>,
+  semesterStart: Date
+): number {
+  const scheduledDays = new Set(timetableEntries.map((e) => e.dayOfWeek));
+  if (scheduledDays.size === 0) return 0;
+
+  const recordsByDate = new Map<string, string[]>();
+  for (const r of attendanceRecords) {
+    const key = dateKeyUTC(r.date);
+    const list = recordsByDate.get(key) || [];
+    list.push(r.status);
+    recordsByDate.set(key, list);
+  }
+
+  const now = new Date();
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const startUTC = new Date(
+    Date.UTC(semesterStart.getUTCFullYear(), semesterStart.getUTCMonth(), semesterStart.getUTCDate())
+  );
+
+  let streak = 0;
+  const cursor = new Date(todayUTC);
+  let isToday = true;
+
+  while (cursor >= startUTC) {
+    const dow = cursor.getUTCDay();
+    if (!scheduledDays.has(dow)) {
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+      isToday = false;
+      continue;
+    }
+
+    const statuses = recordsByDate.get(dateKeyUTC(cursor));
+    if (!statuses || statuses.length === 0) {
+      if (isToday) {
+        cursor.setUTCDate(cursor.getUTCDate() - 1);
+        isToday = false;
+        continue;
+      }
+      break;
+    }
+
+    if (statuses.some((s) => s === "ABSENT")) break;
+
+    streak++;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    isToday = false;
+  }
+
+  return streak;
 }
 
 // Calculate attendance statistics for a semester
@@ -66,6 +131,10 @@ export async function calculateAttendanceStats(
   // hours) minus what's already been used.
   const leavesAvailable = Math.max(0, round2(totalHours * 0.2 - leavesUsed));
 
+  const currentStreakDays = semester
+    ? computeCurrentStreak(timetableEntries, attendanceRecords, semester.startDate)
+    : 0;
+
   return {
     totalHours: round2(totalHours),
     attendedHours: round2(attendedHours),
@@ -73,6 +142,7 @@ export async function calculateAttendanceStats(
     requiredHours: round2(requiredHours),
     leavesAvailable,
     leavesUsed: round2(leavesUsed),
+    currentStreakDays,
   };
 }
 

@@ -17,6 +17,9 @@ import {
   ClipboardCheck,
   GraduationCap,
   BookMarked,
+  BookOpen,
+  Flame,
+  ArrowRight,
   Plus,
   Pencil,
   Trash2,
@@ -40,6 +43,7 @@ interface AttendanceStats {
   requiredHours: number;
   leavesAvailable: number;
   leavesUsed: number;
+  currentStreakDays: number;
 }
 
 interface CGPAData {
@@ -334,13 +338,27 @@ export default function DashboardPage() {
               {attendanceStats && (
                 <motion.div variants={statCardVariants}>
                   <LiquidGlassCard>
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
-                        <ClipboardCheck className="h-5 w-5 text-primary" />
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
+                          <ClipboardCheck className="h-5 w-5 text-primary" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">
+                          Attendance
+                        </h3>
                       </div>
-                      <h3 className="text-lg font-semibold text-foreground">
-                        Attendance
-                      </h3>
+                      {attendanceStats.currentStreakDays > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 22, delay: 0.15 }}
+                          className="frosted-inset flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-warning"
+                          title={`${attendanceStats.currentStreakDays}-day streak of classes with no absences`}
+                        >
+                          <Flame className="h-3.5 w-3.5" />
+                          <AnimatedNumber value={attendanceStats.currentStreakDays} />
+                        </motion.div>
+                      )}
                     </div>
                     <div className="text-gradient-brand mb-2 font-display text-4xl font-bold">
                       <AnimatedNumber value={attendanceStats.attendancePercentage} suffix="%" />
@@ -405,6 +423,30 @@ export default function DashboardPage() {
                   </LiquidGlassCard>
                 </motion.div>
               )}
+            </motion.div>
+
+            {/* Study Notebook entry point - this is its only home on mobile,
+                where the bottom tab bar stays capped at 5 destinations */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: 0.24 }}
+            >
+              <Link
+                href={`/dashboard/study?semesterId=${activeSemester.id}`}
+                className="frosted group flex items-center gap-4 rounded-2xl p-5 transition-all duration-300 ease-out hover:-translate-y-0.5"
+              >
+                <div className="frosted-inset flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground">Study Notebook</p>
+                  <p className="text-sm text-muted-foreground">
+                    Upload notes and ask AI about any subject
+                  </p>
+                </div>
+                <ArrowRight className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
             </motion.div>
           </>
         )}
