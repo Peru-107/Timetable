@@ -10,7 +10,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, GraduationCap, Pencil, Trash2, Check, Calculator } from "lucide-react";
+import { Plus, X, GraduationCap, Pencil, Trash2, Check, Calculator, Download } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -21,6 +21,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { computeGradeFromMarks, GRADE_BANDS } from "@/lib/gradeScale";
+import { toCsv, downloadCsv } from "@/lib/csv";
 
 interface Grade {
   id: string;
@@ -190,6 +191,24 @@ function GradesContent() {
     }
   };
 
+  const handleExportCsv = () => {
+    const csv = toCsv(
+      ["Course", "Credits", "ICA Marks", "ICA Max", "TEE Marks", "TEE Max", "Total %", "Grade", "Grade Points"],
+      grades.map((g) => [
+        g.course.name,
+        g.course.creditHours,
+        g.icaMarks ?? "",
+        g.icaMax,
+        g.teeMarks ?? "",
+        g.teeMax,
+        g.percentage ?? "",
+        g.letterGrade ?? g.grade.toFixed(2),
+        (g.grade * g.course.creditHours).toFixed(2),
+      ])
+    );
+    downloadCsv(`grades-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  };
+
   const toggleWhatIf = (g: Grade) => {
     if (whatIfId === g.id) {
       setWhatIfId(null);
@@ -219,17 +238,24 @@ function GradesContent() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-foreground">Grades & CGPA</h1>
           {semesterId && (
-            <Button onClick={() => setShowForm(!showForm)}>
-              {showForm ? (
-                <>
-                  <X className="h-4 w-4" /> Cancel
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" /> Add Grade
-                </>
+            <div className="flex items-center gap-2">
+              {grades.length > 0 && (
+                <Button variant="outline" onClick={handleExportCsv}>
+                  <Download className="h-4 w-4" /> Export CSV
+                </Button>
               )}
-            </Button>
+              <Button onClick={() => setShowForm(!showForm)}>
+                {showForm ? (
+                  <>
+                    <X className="h-4 w-4" /> Cancel
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" /> Add Grade
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </div>
 

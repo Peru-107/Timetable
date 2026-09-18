@@ -26,7 +26,9 @@ import {
   Pencil,
   Trash2,
   Check,
+  Download,
 } from "lucide-react";
+import { toCsv, downloadCsv } from "@/lib/csv";
 import {
   BarChart,
   Bar,
@@ -208,6 +210,20 @@ function AttendanceContent() {
     }
   };
 
+  const handleExportCsv = () => {
+    const csv = toCsv(
+      ["Date", "Course", "Status", "Duration (h)", "Notes"],
+      records.map((r) => [
+        new Date(r.date).toLocaleDateString(),
+        r.course.name,
+        STATUS_LABEL[r.status],
+        r.hoursDuration,
+        r.notes ?? "",
+      ])
+    );
+    downloadCsv(`attendance-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  };
+
   const handleAddRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -287,17 +303,24 @@ function AttendanceContent() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-foreground">Attendance</h1>
           {semesterId && (
-            <Button onClick={() => setShowForm(!showForm)}>
-              {showForm ? (
-                <>
-                  <X className="h-4 w-4" /> Cancel
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" /> Mark Attendance
-                </>
+            <div className="flex items-center gap-2">
+              {records.length > 0 && (
+                <Button variant="outline" onClick={handleExportCsv}>
+                  <Download className="h-4 w-4" /> Export CSV
+                </Button>
               )}
-            </Button>
+              <Button onClick={() => setShowForm(!showForm)}>
+                {showForm ? (
+                  <>
+                    <X className="h-4 w-4" /> Cancel
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" /> Mark Attendance
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </div>
 
