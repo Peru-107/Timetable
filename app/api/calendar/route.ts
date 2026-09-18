@@ -67,7 +67,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, title, description, eventType, dueDate } = await req.json();
+    const { id, title, description, eventType, dueDate, completed } = await req.json();
     if (!id) {
       return NextResponse.json({ error: "Event ID required" }, { status: 400 });
     }
@@ -86,6 +86,7 @@ export async function PATCH(req: NextRequest) {
         description,
         eventType,
         dueDate: dueDate ? new Date(dueDate) : undefined,
+        completed: typeof completed === "boolean" ? completed : undefined,
       },
     });
 

@@ -173,6 +173,7 @@ model CalendarEvent {
   description String?
   eventType   String // "exam", "assignment", "deadline", "holiday"
   dueDate     DateTime
+  completed   Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

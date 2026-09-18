@@ -28,7 +28,10 @@ interface CalendarEvent {
   description?: string;
   eventType: string;
   dueDate: string;
+  completed: boolean;
 }
+
+const TASK_EVENT_TYPES = new Set(["assignment", "deadline"]);
 
 interface AttendanceRecord {
   id: string;
@@ -153,6 +156,27 @@ function CalendarContent() {
     });
     setEditingEventId(event.id);
     setShowForm(true);
+  };
+
+  const handleToggleComplete = async (event: CalendarEvent) => {
+    // Optimistic update - a checkbox that waits for a round-trip before
+    // ticking feels broken, and this action can't meaningfully fail.
+    setEvents((prev) =>
+      prev.map((e) => (e.id === event.id ? { ...e, completed: !e.completed } : e))
+    );
+    try {
+      const res = await fetch("/api/calendar", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: event.id, completed: !event.completed }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+    } catch (error) {
+      console.error("Error toggling event completion:", error);
+      setEvents((prev) =>
+        prev.map((e) => (e.id === event.id ? { ...e, completed: event.completed } : e))
+      );
+    }
   };
 
   const handleDeleteEvent = async (id: string) => {
@@ -332,7 +356,7 @@ function CalendarContent() {
                               }}
                               className={`block w-full truncate text-left text-xs font-medium hover:underline ${getEventColor(
                                 event.eventType
-                              )}`}
+                              )} ${event.completed ? "line-through opacity-50" : ""}`}
                             >
                               {event.title}
                             </button>
@@ -470,6 +494,12 @@ function CalendarContent() {
                         colorClassName={getEventColor(event.eventType)}
                         onEdit={() => startEditEvent(event)}
                         onDelete={() => handleDeleteEvent(event.id)}
+                        completed={event.completed}
+                        onToggleComplete={
+                          TASK_EVENT_TYPES.has(event.eventType)
+                            ? () => handleToggleComplete(event)
+                            : undefined
+                        }
                       />
                     ))}
                   {events.filter((e) => new Date(e.dueDate) >= new Date()).length === 0 && (
