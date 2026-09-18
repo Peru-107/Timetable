@@ -4,11 +4,18 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { StudyChat } from "@/components/StudyChat";
 import { ShimmerText } from "@/components/kokonutui/shimmer-text";
 import { Button } from "@/components/ui/button";
+
+const materialVariants: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, height: 0, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } },
+};
 import {
   ArrowLeft,
   Upload,
@@ -183,9 +190,23 @@ function StudyCourseContent() {
             to ask AI questions about it below.
           </div>
         ) : (
-          <div className="mb-8 space-y-3">
+          <motion.div
+            className="mb-8 space-y-3"
+            initial="hidden"
+            animate="show"
+            variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+          >
+            <AnimatePresence initial={false}>
             {materials.map((m) => (
-              <div key={m.id} className="frosted overflow-hidden rounded-2xl">
+              <motion.div
+                key={m.id}
+                layout
+                variants={materialVariants}
+                initial="hidden"
+                animate="show"
+                exit="exit"
+                className="frosted overflow-hidden rounded-2xl"
+              >
                 <div className="flex items-center gap-3 p-4">
                   <div className="frosted-inset flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl">
                     {m.fileType === "pdf" ? (
@@ -241,9 +262,10 @@ function StudyCourseContent() {
                     {m.extractedText}
                   </div>
                 )}
-              </div>
+              </motion.div>
             ))}
-          </div>
+            </AnimatePresence>
+          </motion.div>
         )}
 
         {semesterId && (

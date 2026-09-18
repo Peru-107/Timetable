@@ -4,11 +4,17 @@ import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion, type Variants } from "motion/react";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { FileText, Sparkles } from "lucide-react";
+
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } },
+};
 
 interface Course {
   id: string;
@@ -90,41 +96,49 @@ function StudyContent() {
           </div>
         ) : (
           <>
-            <Link
-              href={`/dashboard/study/all?semesterId=${semesterId}`}
-              className="frosted mb-6 flex items-center gap-4 rounded-2xl p-5 transition-transform hover:-translate-y-0.5"
-            >
-              <div className="frosted-inset flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl">
-                <Sparkles className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium text-foreground">Ask Across All Subjects</p>
-                <p className="text-sm text-muted-foreground">
-                  One chat that draws on everything you&apos;ve uploaded this semester
-                </p>
-              </div>
-            </Link>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {courses.map((course) => (
+            <motion.div initial="hidden" animate="show" variants={cardVariants}>
               <Link
-                key={course.id}
-                href={`/dashboard/study/${course.id}?semesterId=${semesterId}`}
-                className="frosted flex items-center gap-4 rounded-2xl p-5 transition-transform hover:-translate-y-0.5"
+                href={`/dashboard/study/all?semesterId=${semesterId}`}
+                className="frosted mb-6 flex items-center gap-4 rounded-2xl p-5 transition-all duration-300 ease-out hover:-translate-y-0.5"
               >
                 <div className="frosted-inset flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl">
-                  <FileText className="h-5 w-5 text-primary" />
+                  <Sparkles className="h-5 w-5 text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{course.name}</p>
+                <div>
+                  <p className="font-medium text-foreground">Ask Across All Subjects</p>
                   <p className="text-sm text-muted-foreground">
-                    {fileCounts[course.id] === 1
-                      ? "1 file"
-                      : `${fileCounts[course.id] ?? 0} files`}
+                    One chat that draws on everything you&apos;ve uploaded this semester
                   </p>
                 </div>
               </Link>
+            </motion.div>
+            <motion.div
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              initial="hidden"
+              animate="show"
+              variants={{ show: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } } }}
+            >
+            {courses.map((course) => (
+              <motion.div key={course.id} variants={cardVariants}>
+                <Link
+                  href={`/dashboard/study/${course.id}?semesterId=${semesterId}`}
+                  className="frosted flex items-center gap-4 rounded-2xl p-5 transition-all duration-300 ease-out hover:-translate-y-0.5"
+                >
+                  <div className="frosted-inset flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-foreground">{course.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {fileCounts[course.id] === 1
+                        ? "1 file"
+                        : `${fileCounts[course.id] ?? 0} files`}
+                    </p>
+                  </div>
+                </Link>
+              </motion.div>
             ))}
-            </div>
+            </motion.div>
           </>
         )}
       </div>

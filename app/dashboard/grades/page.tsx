@@ -3,12 +3,14 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectNative } from "@/components/ui/select-native";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { Plus, X, GraduationCap, Pencil, Trash2, Check, Calculator, Download } from "lucide-react";
 import {
@@ -22,6 +24,16 @@ import {
 } from "recharts";
 import { computeGradeFromMarks, GRADE_BANDS } from "@/lib/gradeScale";
 import { toCsv, downloadCsv } from "@/lib/csv";
+
+const fadeUpVariants: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } },
+};
+
+const rowVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
+};
 
 interface Grade {
   id: string;
@@ -265,7 +277,12 @@ function GradesContent() {
           <>
             {/* CGPA Card */}
             {cgpaData && (
-              <div className="frosted mb-8 rounded-2xl p-8">
+              <motion.div
+                initial="hidden"
+                animate="show"
+                variants={fadeUpVariants}
+                className="frosted mb-8 rounded-2xl p-8"
+              >
                 <div className="mb-4 flex items-center gap-3">
                   <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
                     <GraduationCap className="h-5 w-5 text-primary" />
@@ -277,7 +294,7 @@ function GradesContent() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="font-mono text-6xl font-bold text-primary">
-                      {cgpaData.cgpa.toFixed(2)}
+                      <AnimatedNumber value={cgpaData.cgpa} decimals={2} />
                     </p>
                     <p className="mt-2 text-lg text-muted-foreground">out of 4.0</p>
                   </div>
@@ -291,12 +308,18 @@ function GradesContent() {
                     </p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* Form */}
+            <AnimatePresence>
             {showForm && (
-              <div className="frosted mb-8 rounded-2xl p-6">
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="frosted mb-8 overflow-hidden rounded-2xl p-6">
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
                   Add Grade
                 </h2>
@@ -377,12 +400,18 @@ function GradesContent() {
                     Add Grade
                   </Button>
                 </form>
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
 
             {/* Chart */}
             {cgpaData && cgpaData.courses.length > 0 && (
-              <div className="frosted mb-8 rounded-2xl p-6">
+              <motion.div
+                initial="hidden"
+                animate="show"
+                variants={fadeUpVariants}
+                className="frosted mb-8 rounded-2xl p-6"
+              >
                 <h2 className="mb-4 text-xl font-semibold text-foreground">
                   Course Grades
                 </h2>
@@ -400,7 +429,7 @@ function GradesContent() {
                     <Bar dataKey="grade" fill="var(--primary)" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </motion.div>
             )}
 
             {/* Grades Table */}
@@ -424,7 +453,11 @@ function GradesContent() {
                       <th className="px-6 py-3">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <motion.tbody
+                    initial="hidden"
+                    animate="show"
+                    variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+                  >
                     {grades.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
@@ -434,7 +467,7 @@ function GradesContent() {
                     ) : (
                       grades.flatMap((g) => [
                         editingId === g.id ? (
-                          <tr key={g.id} className="frosted-inset">
+                          <motion.tr variants={rowVariants} key={g.id} className="frosted-inset">
                             <td className="px-6 py-4 text-sm font-medium text-foreground">
                               {g.course.name}
                             </td>
@@ -513,9 +546,9 @@ function GradesContent() {
                                 </button>
                               </div>
                             </td>
-                          </tr>
+                          </motion.tr>
                         ) : (
-                          <tr key={g.id}>
+                          <motion.tr variants={rowVariants} key={g.id}>
                             <td className="px-6 py-4 text-sm font-medium text-foreground">
                               {g.course.name}
                             </td>
@@ -575,7 +608,7 @@ function GradesContent() {
                                 </button>
                               </div>
                             </td>
-                          </tr>
+                          </motion.tr>
                         ),
                         whatIfId === g.id ? (
                           <WhatIfRow
@@ -590,7 +623,7 @@ function GradesContent() {
                         ) : null,
                       ])
                     )}
-                  </tbody>
+                  </motion.tbody>
                 </table>
               </div>
             </div>
@@ -630,9 +663,19 @@ function WhatIfRow({
   const alreadyThere = rawRequiredTee <= 0;
 
   return (
-    <tr className="frosted-inset">
+    <motion.tr
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      className="frosted-inset"
+    >
       <td colSpan={8} className="px-6 py-5">
-        <div className="grid gap-6 sm:grid-cols-2">
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
+          className="grid gap-6 sm:grid-cols-2"
+        >
           <div>
             <p className="mb-2 text-sm font-semibold text-foreground">
               If I score this on the TEE...
@@ -708,8 +751,8 @@ function WhatIfRow({
               </p>
             )}
           </div>
-        </div>
+        </motion.div>
       </td>
-    </tr>
+    </motion.tr>
   );
 }
