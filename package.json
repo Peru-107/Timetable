@@ -38,6 +38,7 @@
     "react-dom": "19.2.8",
     "react-hook-form": "^7.50.0",
     "recharts": "^2.10.3",
+    "resend": "^6.28.1",
     "tailwind-merge": "^2.0.0",
     "tesseract.js": "^7.0.0",
     "vercel": "^32.0.0",

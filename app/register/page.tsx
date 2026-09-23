@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import Link from "next/link";
 import { UserPlus, AlertCircle } from "lucide-react";
 
@@ -94,8 +95,7 @@ export default function RegisterPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Password
             </label>
-            <Input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 6 characters"
@@ -107,8 +107,7 @@ export default function RegisterPage() {
             <label className="mb-2 block text-sm font-medium text-foreground">
               Confirm Password
             </label>
-            <Input
-              type="password"
+            <PasswordInput
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm your password"

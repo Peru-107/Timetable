@@ -19,15 +19,30 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  semesters         Semester[]
-  grades            Grade[]
-  attendance        AttendanceRecord[]
-  calendarEvents    CalendarEvent[]
-  studyMaterials    StudyMaterial[]
-  chatMessages      ChatMessage[]
-  pushSubscriptions PushSubscription[]
+  semesters           Semester[]
+  grades              Grade[]
+  attendance          AttendanceRecord[]
+  calendarEvents      CalendarEvent[]
+  studyMaterials      StudyMaterial[]
+  chatMessages        ChatMessage[]
+  pushSubscriptions   PushSubscription[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  // Only a hash of the reset token is ever stored - if the database leaked,
+  // the raw token (the only thing that can actually reset a password)
+  // would still be safe.
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
 }
 
 model PushSubscription {
