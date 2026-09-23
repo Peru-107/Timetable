@@ -6,13 +6,21 @@ import { Resend } from "resend";
  * never break the reset flow or leak whether it's configured - log the
  * would-be email instead of throwing, so forgot-password still responds the
  * same generic "check your email" message either way.
+ *
+ * The link is logged unconditionally, not just when RESEND_API_KEY is
+ * missing: Resend's shared onboarding@resend.dev sender only delivers to
+ * the account's own registered email until a custom domain is verified, so
+ * for every other recipient this log line is the only way to actually get
+ * the link during that window. Remove this once EMAIL_FROM is on a verified
+ * domain - production reset links shouldn't sit in server logs once real
+ * delivery works for everyone.
  */
 export async function sendPasswordResetEmail(email: string, resetUrl: string) {
+  console.log(`Password reset link for ${email}: ${resetUrl}`);
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn(
-      `RESEND_API_KEY is not set - would have emailed a password reset link to ${email}: ${resetUrl}`
-    );
+    console.warn("RESEND_API_KEY is not set - email not actually sent, see link above.");
     return;
   }
 
