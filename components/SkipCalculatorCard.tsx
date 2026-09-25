@@ -12,6 +12,8 @@ export interface CourseSkipStat {
   classesAvailableToMiss: number;
   classesToRecover: number;
   hoursAvailableToMiss: number;
+  uniformSessions: boolean;
+  hoursToRecover: number;
   canReachTarget: boolean;
   minAttendance: number;
   riskLevel: "safe" | "warning" | "critical";
@@ -31,7 +33,9 @@ export function verdict(c: CourseSkipStat): { text: string; tone: keyof typeof T
     return { text: `Can't reach ${c.minAttendance}% this semester`, tone: "critical" };
   if (c.classesToRecover > 0)
     return {
-      text: `Attend next ${c.classesToRecover} to reach ${c.minAttendance}%`,
+      text: c.uniformSessions
+        ? `Attend next ${c.classesToRecover} ${c.classesToRecover === 1 ? "class" : "classes"} to reach ${c.minAttendance}%`
+        : `Attend the next ${fmtHours(c.hoursToRecover)} of classes to reach ${c.minAttendance}%`,
       tone: "critical",
     };
   // Hours are the real allowance (e.g. 20% of 30h = 6h for every 3-credit
@@ -40,6 +44,9 @@ export function verdict(c: CourseSkipStat): { text: string; tone: keyof typeof T
   const hours = fmtHours(c.hoursAvailableToMiss);
   if (c.hoursAvailableToMiss <= 0) return { text: "Can't miss any more", tone: "warning" };
   const tone = c.riskLevel === "warning" ? "warning" : "safe";
+  // Mixed lecture lengths (1h one day, 2h another): how many lectures the
+  // hours cover depends on which ones are missed, so give hours only.
+  if (!c.uniformSessions) return { text: `Can miss ${hours} more`, tone };
   if (c.classesAvailableToMiss === 0)
     return { text: `Can miss ${hours} more (less than a full class)`, tone: "warning" };
   return {

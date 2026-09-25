@@ -214,6 +214,10 @@ export interface CourseAttendanceStat {
   classesAvailableToMiss: number;
   /** Average length of one of this course's weekly classes, in hours. */
   sessionHours: number;
+  /** True when every weekly class is the same length (class counts are exact). */
+  uniformSessions: boolean;
+  /** Hours of classes to attend in a row to get back to the minimum. */
+  hoursToRecover: number;
   /** Classes to attend in a row to get back to 80%; 0 when already there. */
   classesToRecover: number;
   /**
@@ -288,6 +292,15 @@ export async function calculateAttendanceStatsByCourse(
     const classesAvailableToMiss =
       avgSessionHours > 0 ? Math.floor(hoursAvailableToMiss / avgSessionHours + 1e-9) : 0;
     const classesToRecover = sessionsToRecover(attendedHours, heldHours, avgSessionHours, min);
+    // A 3-hour subject can be one 3h block, or 1h one day + 2h another. With
+    // mixed lengths a "number of classes" depends on which ones you miss, so
+    // the UI speaks in hours then; these back that up.
+    const sessionLengths = weekly.map((e) => computeHoursFromTimes(e.startTime, e.endTime));
+    const uniformSessions = sessionLengths.length > 0 && sessionLengths.every((h) => h === sessionLengths[0]);
+    const longestSession = sessionLengths.length > 0 ? Math.max(...sessionLengths) : 0;
+    // Hours to attend in a row to get back to the minimum: (P + x) / (H + x) >= min.
+    const deficit = min * heldHours - attendedHours;
+    const hoursToRecover = deficit > 1e-9 ? Math.ceil((deficit / (1 - min)) * 4 - 1e-9) / 4 : 0;
 
     // No attendance recorded yet reads as 0% - that's "no data", not a
     // shortfall, so it must not trip the same "critical" as an actual
@@ -298,7 +311,8 @@ export async function calculateAttendanceStatsByCourse(
         ? "critical"
         : // Amber once at most one class or a third of the allowance is left -
           // never before anything has been missed.
-          leavesUsed > 0 && (classesAvailableToMiss <= 1 || hoursAvailableToMiss <= missBudget / 3)
+          leavesUsed > 0 &&
+            (hoursAvailableToMiss < 2 * longestSession || hoursAvailableToMiss <= missBudget / 3)
           ? "warning"
           : "safe";
 
@@ -315,6 +329,8 @@ export async function calculateAttendanceStatsByCourse(
       classesAvailableToMiss,
       classesToRecover,
       sessionHours: round2(avgSessionHours),
+      uniformSessions,
+      hoursToRecover,
       canReachTarget,
       riskLevel,
     };

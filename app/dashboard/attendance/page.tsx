@@ -72,6 +72,8 @@ interface CourseAttendanceStat {
   classesToRecover: number;
   minAttendance: number;
   sessionHours: number;
+  uniformSessions: boolean;
+  hoursToRecover: number;
   canReachTarget: boolean;
   heldHours: number;
   riskLevel: AttendanceRiskLevel;
@@ -89,9 +91,17 @@ function riskMessage(c: CourseAttendanceStat): string {
     return `Too many absences to finish the semester at ${c.minAttendance}%`;
   }
   if (c.classesToRecover > 0) {
+    if (!c.uniformSessions) {
+      return `Below ${c.minAttendance}% - attend the next ${c.hoursToRecover}h of classes to recover`;
+    }
     return `Below ${c.minAttendance}% - attend the next ${c.classesToRecover} ${
       c.classesToRecover === 1 ? "class" : "classes"
     } to recover`;
+  }
+  if (!c.uniformSessions) {
+    return c.hoursAvailableToMiss > 0
+      ? `You can miss ${c.hoursAvailableToMiss}h more`
+      : `Can't miss another class and stay at ${c.minAttendance}%`;
   }
   if (c.classesAvailableToMiss === 0) {
     return c.hoursAvailableToMiss > 0
@@ -99,9 +109,13 @@ function riskMessage(c: CourseAttendanceStat): string {
       : `Can't miss another class and stay at ${c.minAttendance}%`;
   }
   if (c.classesAvailableToMiss === 1) {
-    return `You can miss ${c.hoursAvailableToMiss}h more (1 class)`;
+    return c.uniformSessions
+      ? `You can miss ${c.hoursAvailableToMiss}h more (1 class)`
+      : `You can miss ${c.hoursAvailableToMiss}h more`;
   }
-  return `You can miss ${c.hoursAvailableToMiss}h more (${c.classesAvailableToMiss} classes)`;
+  return c.uniformSessions
+    ? `You can miss ${c.hoursAvailableToMiss}h more (${c.classesAvailableToMiss} classes)`
+    : `You can miss ${c.hoursAvailableToMiss}h more`;
 }
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
