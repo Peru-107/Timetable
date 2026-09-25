@@ -56,7 +56,7 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
           </Link>
 
           {/* Desktop: full nav inline */}
-          <div className="hidden flex-wrap items-center gap-2 sm:flex">
+          <div className="hidden flex-wrap items-center gap-2 lg:flex">
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
               const active = pathname === href;
               return (
@@ -113,7 +113,7 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
             ref={avatarButtonRef}
             type="button"
             onClick={() => setAvatarMenuOpen((v) => !v)}
-            className="frosted-inset flex h-9 w-9 items-center justify-center rounded-full text-foreground sm:hidden"
+            className="frosted-inset flex h-9 w-9 items-center justify-center rounded-full text-foreground lg:hidden"
             aria-label="Account menu"
             aria-haspopup="menu"
             aria-expanded={avatarMenuOpen}
@@ -130,7 +130,7 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
       </nav>
 
       {/* Mobile bottom tab bar - kept on the plain glass look, not the liquid bevel */}
-      <nav className="glass fixed inset-x-3 bottom-3 z-10 rounded-[1.6rem] px-1 py-1 sm:hidden">
+      <nav className="glass fixed inset-x-3 bottom-3 z-10 mx-auto max-w-lg rounded-[1.6rem] px-1 py-1 lg:hidden">
         <div className="flex items-center justify-between">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;

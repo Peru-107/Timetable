@@ -11,6 +11,7 @@ export interface CourseSkipStat {
   attendancePercentage: number;
   classesAvailableToMiss: number;
   classesToRecover: number;
+  hoursAvailableToMiss: number;
   canReachTarget: boolean;
   minAttendance: number;
   riskLevel: "safe" | "warning" | "critical";
@@ -23,6 +24,8 @@ export const TONE = {
   none: "var(--muted-foreground)",
 } as const;
 
+const fmtHours = (h: number) => `${Math.round(h * 100) / 100}h`;
+
 export function verdict(c: CourseSkipStat): { text: string; tone: keyof typeof TONE } {
   if (!c.canReachTarget)
     return { text: `Can't reach ${c.minAttendance}% this semester`, tone: "critical" };
@@ -31,10 +34,19 @@ export function verdict(c: CourseSkipStat): { text: string; tone: keyof typeof T
       text: `Attend next ${c.classesToRecover} to reach ${c.minAttendance}%`,
       tone: "critical",
     };
-  if (c.classesAvailableToMiss === 0) return { text: "Can't skip any more", tone: "warning" };
+  // Hours are the real allowance (e.g. 20% of 30h = 6h for every 3-credit
+  // subject); the class count depends on how long that subject's lectures
+  // are, so it's shown second.
+  const hours = fmtHours(c.hoursAvailableToMiss);
+  if (c.hoursAvailableToMiss <= 0) return { text: "Can't miss any more", tone: "warning" };
+  const tone = c.riskLevel === "warning" ? "warning" : "safe";
+  if (c.classesAvailableToMiss === 0)
+    return { text: `Can miss ${hours} more (less than a full class)`, tone: "warning" };
   return {
-    text: `Can skip ${c.classesAvailableToMiss} more`,
-    tone: c.riskLevel === "warning" ? "warning" : "safe",
+    text: `Can miss ${hours} more · ${c.classesAvailableToMiss} ${
+      c.classesAvailableToMiss === 1 ? "class" : "classes"
+    }`,
+    tone,
   };
 }
 

@@ -296,7 +296,9 @@ export async function calculateAttendanceStatsByCourse(
     const riskLevel: AttendanceRiskLevel =
       !canReachTarget || (hasRecords && attendancePercentage < min * 100)
         ? "critical"
-        : classesAvailableToMiss <= 2
+        : // Amber once at most one class or a third of the allowance is left -
+          // never before anything has been missed.
+          leavesUsed > 0 && (classesAvailableToMiss <= 1 || hoursAvailableToMiss <= missBudget / 3)
           ? "warning"
           : "safe";
 

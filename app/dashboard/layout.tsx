@@ -8,7 +8,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           doesn't sit under the fixed mobile tab bar - a spacer placed inside
           DashboardNav itself can't do this, since DashboardNav renders near
           the top of the page, not at the end of its content. */}
-      <div className="h-20 sm:hidden" aria-hidden="true" />
+      <div className="h-20 lg:hidden" aria-hidden="true" />
     </PageTransition>
   );
 }

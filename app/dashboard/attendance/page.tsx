@@ -94,12 +94,14 @@ function riskMessage(c: CourseAttendanceStat): string {
     } to recover`;
   }
   if (c.classesAvailableToMiss === 0) {
-    return `Can't miss another class and stay at ${c.minAttendance}%`;
+    return c.hoursAvailableToMiss > 0
+      ? `${c.hoursAvailableToMiss}h left - less than a full class`
+      : `Can't miss another class and stay at ${c.minAttendance}%`;
   }
   if (c.classesAvailableToMiss === 1) {
-    return "You can miss 1 more class";
+    return `You can miss ${c.hoursAvailableToMiss}h more (1 class)`;
   }
-  return `You can miss ${c.classesAvailableToMiss} more classes`;
+  return `You can miss ${c.hoursAvailableToMiss}h more (${c.classesAvailableToMiss} classes)`;
 }
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
