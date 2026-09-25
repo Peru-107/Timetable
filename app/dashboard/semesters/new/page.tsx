@@ -69,7 +69,7 @@ export default function NewSemesterPage() {
           <div className="frosted-inset mb-6 flex h-14 w-14 items-center justify-center rounded-2xl">
             <CalendarRange className="h-7 w-7 text-primary" />
           </div>
-          <h1 className="mb-8 text-3xl font-bold text-foreground">
+          <h1 className="mb-8 font-display text-4xl font-bold tracking-tight text-foreground">
             Create New Semester
           </h1>
 

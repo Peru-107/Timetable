@@ -188,8 +188,12 @@ function RingsView({
   const dim = (id: string) => (selected && selected !== id ? 0.3 : 1);
 
   return (
-    <div className="flex items-center gap-4">
-      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} className="flex-shrink-0" aria-hidden="true">
+    <div className="flex items-center gap-3 sm:gap-4">
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        className="h-auto w-[42%] max-w-[164px] flex-shrink-0"
+        aria-hidden="true"
+      >
         <g opacity={selected ? 0.3 : 1}>
           <Arc cx={cx} r={cx - w / 2} w={w} pct={overall.percentage} color="var(--primary)" />
         </g>
@@ -199,12 +203,12 @@ function RingsView({
           </g>
         ))}
       </svg>
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex flex-wrap items-baseline">
           <span className="font-display text-3xl font-bold tracking-tight text-primary">
             {Math.round(overall.percentage)}%
           </span>
-          <span className="ml-1 text-xs text-muted-foreground">overall</span>
+          <span className="ml-1 whitespace-nowrap text-xs text-muted-foreground">overall</span>
         </div>
         {watch.map((s) => (
           <button

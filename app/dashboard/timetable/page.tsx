@@ -718,7 +718,7 @@ function TimetableContent() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold text-foreground">Timetable</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">Timetable</h1>
           {semesterId && (
             <div className="flex flex-wrap gap-3">
               <Button
@@ -834,11 +834,147 @@ function TimetableContent() {
           <NoSemesterState />
         ) : (
           <>
+            {/* Phone: one day at a time. A Mon-Sun strip to jump between
+                days (today preselected), and swiping the day's panel
+                sideways moves to the previous/next day. */}
+            <div className="mb-8 lg:hidden">
+              <div
+                role="tablist"
+                aria-label="Day of the week"
+                className="frosted-inset mb-4 grid grid-cols-7 gap-1 rounded-2xl p-1"
+              >
+                {WEEK_ORDER.map((dayIndex) => {
+                  const selected = dayIndex === selectedDay;
+                  const count = entriesByDay[dayIndex].length;
+                  return (
+                    <button
+                      key={dayIndex}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      aria-label={`${DAYS[dayIndex]}, ${count} ${count === 1 ? "class" : "classes"}`}
+                      onClick={() => goToDay(dayIndex)}
+                      className="relative flex flex-col items-center gap-1 rounded-xl py-2 text-xs font-semibold"
+                    >
+                      {selected && (
+                        <motion.span
+                          layoutId="day-strip-pill"
+                          className="absolute inset-0 rounded-xl bg-primary"
+                          transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                        />
+                      )}
+                      <span
+                        className={`relative ${
+                          selected
+                            ? "text-primary-foreground"
+                            : dayIndex === todayDayIndex
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {DAYS[dayIndex].slice(0, 3)}
+                      </span>
+                      <span className="relative flex h-1.5 items-center gap-0.5">
+                        {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
+                          <span
+                            key={i}
+                            className={`h-1 w-1 rounded-full ${
+                              selected ? "bg-primary-foreground/80" : "bg-muted-foreground/60"
+                            }`}
+                          />
+                        ))}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="overflow-hidden">
+                <AnimatePresence mode="popLayout" initial={false} custom={dayDirection}>
+                  <motion.div
+                    key={selectedDay}
+                    custom={dayDirection}
+                    variants={daySlideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    drag="x"
+                    dragDirectionLock
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.25}
+                    onDragEnd={(_, info) => {
+                      if (info.offset.x < -60 || info.velocity.x < -400) stepDay(1);
+                      else if (info.offset.x > 60 || info.velocity.x > 400) stepDay(-1);
+                    }}
+                    style={{ touchAction: "pan-y" }}
+                    className="frosted rounded-2xl p-4"
+                  >
+                    <h3 className="mb-4 flex items-center justify-center gap-2 font-semibold text-foreground">
+                      {DAYS[selectedDay]}
+                      {selectedDay === todayDayIndex && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          Today
+                        </span>
+                      )}
+                    </h3>
+                    <div className="space-y-2">{renderDayBody(selectedDay)}</div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Desktop: the whole week at once. A day with no classes
+                collapses to a single compact row; only Today and days that
+                actually have something scheduled get the full card. */}
+            <motion.div
+              className="mb-8 hidden grid-cols-7 gap-3 lg:grid"
+              initial="hidden"
+              animate="show"
+              variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+            >
+              {DAYS.map((day, dayIndex) => {
+                const dayEntries = entriesByDay[dayIndex];
+                const isToday = dayIndex === todayDayIndex;
+
+                if (dayEntries.length === 0 && !isToday) {
+                  return (
+                    <motion.div
+                      key={dayIndex}
+                      variants={dayCardVariants}
+                      className="frosted-inset flex items-center justify-between rounded-xl px-4 py-2.5 text-sm"
+                    >
+                      <span className="font-medium text-foreground">{day}</span>
+                      <span className="text-muted-foreground">No classes</span>
+                    </motion.div>
+                  );
+                }
+
+                return (
+                  <motion.div key={dayIndex} variants={dayCardVariants} className="frosted rounded-2xl p-4">
+                    <h3 className="mb-4 flex items-center justify-center gap-2 font-semibold text-foreground">
+                      {day}
+                      {isToday && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          Today
+                        </span>
+                      )}
+                    </h3>
+                    <div className="space-y-2">{renderDayBody(dayIndex)}</div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+
             {/* Courses */}
             <div className="frosted mb-8 rounded-2xl p-6">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-semibold text-foreground">Courses</h2>
-                <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-foreground">
+                  Courses{" "}
+                  {courses.length > 0 && (
+                    <span className="text-base font-medium text-muted-foreground">({courses.length})</span>
+                  )}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2">
                   <Link href={`/dashboard/study?semesterId=${semesterId}`}>
                     <Button size="sm" variant="outline">
                       <BookOpen className="h-4 w-4" /> Study Notebook
@@ -846,7 +982,7 @@ function TimetableContent() {
                   </Link>
                   <Button
                     size="sm"
-                    variant={showAddCourseForm ? "outline" : "default"}
+                    variant="outline"
                     onClick={() => {
                       setEditingCourseId(null);
                       setAddCourseError("");
@@ -865,11 +1001,13 @@ function TimetableContent() {
                   </Button>
                 </div>
               </div>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Add each course you&apos;re taking this semester. You&apos;ll need at
-                least one before you can add classes, mark attendance, or record
-                grades.
-              </p>
+              {courses.length === 0 && (
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Add each course you&apos;re taking this semester. You&apos;ll need at
+                  least one before you can add classes, mark attendance, or record
+                  grades.
+                </p>
+              )}
 
               {courses.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
@@ -1210,136 +1348,7 @@ function TimetableContent() {
                 </form>
             </ResponsiveSheet>
 
-            {/* Phone: one day at a time. A Mon-Sun strip to jump between
-                days (today preselected), and swiping the day's panel
-                sideways moves to the previous/next day. */}
-            <div className="lg:hidden">
-              <div
-                role="tablist"
-                aria-label="Day of the week"
-                className="frosted-inset mb-4 grid grid-cols-7 gap-1 rounded-2xl p-1"
-              >
-                {WEEK_ORDER.map((dayIndex) => {
-                  const selected = dayIndex === selectedDay;
-                  const count = entriesByDay[dayIndex].length;
-                  return (
-                    <button
-                      key={dayIndex}
-                      type="button"
-                      role="tab"
-                      aria-selected={selected}
-                      aria-label={`${DAYS[dayIndex]}, ${count} ${count === 1 ? "class" : "classes"}`}
-                      onClick={() => goToDay(dayIndex)}
-                      className="relative flex flex-col items-center gap-1 rounded-xl py-2 text-xs font-semibold"
-                    >
-                      {selected && (
-                        <motion.span
-                          layoutId="day-strip-pill"
-                          className="absolute inset-0 rounded-xl bg-primary"
-                          transition={{ type: "spring", stiffness: 500, damping: 38 }}
-                        />
-                      )}
-                      <span
-                        className={`relative ${
-                          selected
-                            ? "text-primary-foreground"
-                            : dayIndex === todayDayIndex
-                              ? "text-primary"
-                              : "text-muted-foreground"
-                        }`}
-                      >
-                        {DAYS[dayIndex].slice(0, 3)}
-                      </span>
-                      <span className="relative flex h-1.5 items-center gap-0.5">
-                        {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
-                          <span
-                            key={i}
-                            className={`h-1 w-1 rounded-full ${
-                              selected ? "bg-primary-foreground/80" : "bg-muted-foreground/60"
-                            }`}
-                          />
-                        ))}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
 
-              <div className="overflow-hidden">
-                <AnimatePresence mode="popLayout" initial={false} custom={dayDirection}>
-                  <motion.div
-                    key={selectedDay}
-                    custom={dayDirection}
-                    variants={daySlideVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    drag="x"
-                    dragDirectionLock
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.25}
-                    onDragEnd={(_, info) => {
-                      if (info.offset.x < -60 || info.velocity.x < -400) stepDay(1);
-                      else if (info.offset.x > 60 || info.velocity.x > 400) stepDay(-1);
-                    }}
-                    style={{ touchAction: "pan-y" }}
-                    className="frosted rounded-2xl p-4"
-                  >
-                    <h3 className="mb-4 flex items-center justify-center gap-2 font-semibold text-foreground">
-                      {DAYS[selectedDay]}
-                      {selectedDay === todayDayIndex && (
-                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                          Today
-                        </span>
-                      )}
-                    </h3>
-                    <div className="space-y-2">{renderDayBody(selectedDay)}</div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </div>
-
-            {/* Desktop: the whole week at once. A day with no classes
-                collapses to a single compact row; only Today and days that
-                actually have something scheduled get the full card. */}
-            <motion.div
-              className="hidden grid-cols-7 gap-3 lg:grid"
-              initial="hidden"
-              animate="show"
-              variants={{ show: { transition: { staggerChildren: 0.05 } } }}
-            >
-              {DAYS.map((day, dayIndex) => {
-                const dayEntries = entriesByDay[dayIndex];
-                const isToday = dayIndex === todayDayIndex;
-
-                if (dayEntries.length === 0 && !isToday) {
-                  return (
-                    <motion.div
-                      key={dayIndex}
-                      variants={dayCardVariants}
-                      className="frosted-inset flex items-center justify-between rounded-xl px-4 py-2.5 text-sm"
-                    >
-                      <span className="font-medium text-foreground">{day}</span>
-                      <span className="text-muted-foreground">No classes</span>
-                    </motion.div>
-                  );
-                }
-
-                return (
-                  <motion.div key={dayIndex} variants={dayCardVariants} className="frosted rounded-2xl p-4">
-                    <h3 className="mb-4 flex items-center justify-center gap-2 font-semibold text-foreground">
-                      {day}
-                      {isToday && (
-                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                          Today
-                        </span>
-                      )}
-                    </h3>
-                    <div className="space-y-2">{renderDayBody(dayIndex)}</div>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
           </>
         )}
       </div>

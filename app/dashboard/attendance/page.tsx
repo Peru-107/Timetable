@@ -141,6 +141,8 @@ function AttendanceContent() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [stats, setStats] = useState<AttendanceStats | null>(null);
   const [statsByCourse, setStatsByCourse] = useState<CourseAttendanceStat[]>([]);
+  // A semester builds up hundreds of records; show the latest page first.
+  const [visibleRecords, setVisibleRecords] = useState(20);
   const [courses, setCourses] = useState<Array<{ id: string; name: string }>>([]);
   const [timetableEntries, setTimetableEntries] = useState<
     Array<{ courseId: string; dayOfWeek: number; startTime: string; endTime: string }>
@@ -318,9 +320,9 @@ function AttendanceContent() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold text-foreground">Attendance</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">Attendance</h1>
           {semesterId && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {records.length > 0 && (
                 <Button variant="outline" onClick={handleExportCsv}>
                   <Download className="h-4 w-4" /> Export CSV
@@ -378,7 +380,8 @@ function AttendanceContent() {
                     {stats.attendedHours}/{stats.heldHours}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    of classes held so far · {stats.totalHours}h in the semester
+                    held so far · 80% of that = {Math.round(stats.heldHours * 0.8 * 100) / 100}h
+                    needed now
                   </p>
                 </motion.div>
 
@@ -388,6 +391,10 @@ function AttendanceContent() {
                   </h3>
                   <p className="font-mono text-3xl font-bold text-warning">
                     <AnimatedNumber value={stats.leavesAvailable} suffix="h" />
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    of {Math.round(stats.totalHours * 0.2 * 100) / 100}h allowed ({stats.totalHours}h
+                    semester × 20%)
                   </p>
                 </motion.div>
 
@@ -431,18 +438,35 @@ function AttendanceContent() {
                   {statsByCourse.map((c) => (
                     <div key={c.courseId} className="frosted-inset rounded-xl p-4">
                       <p className="truncate font-medium text-foreground">{c.courseName}</p>
-                      <p className="mt-1 font-mono text-sm text-foreground">
-                        {c.heldHours > 0 ? `${c.attendancePercentage}%` : "--"}{" "}
-                        <span className="font-sans text-xs text-muted-foreground">
-                          ({c.attendedHours}h of {c.heldHours}h held)
-                        </span>
-                      </p>
-                      <div className="mt-3 flex items-baseline gap-1.5">
+                      {/* Two different yardsticks, shown side by side:
+                          "so far" grows with every lecture held (80% of what's
+                          been conducted), while the miss budget is fixed by the
+                          whole semester's total (20% of it). */}
+                      <div className="mt-2 flex items-baseline gap-2">
                         <span className={`font-mono text-2xl font-bold ${RISK_STYLE[c.riskLevel]}`}>
-                          {c.hoursAvailableToMiss}h
+                          {c.heldHours > 0 ? `${c.attendancePercentage}%` : "--"}
                         </span>
-                        <span className="text-xs text-muted-foreground">you can still miss</span>
+                        <span className="text-xs text-muted-foreground">so far</span>
                       </div>
+                      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                        <dt className="text-muted-foreground">So far</dt>
+                        <dd className="text-foreground">
+                          {c.heldHours > 0 ? (
+                            <>
+                              attended {c.attendedHours}h of {c.heldHours}h held · 80% ={" "}
+                              {Math.round(c.heldHours * 0.8 * 100) / 100}h
+                            </>
+                          ) : (
+                            "no classes marked yet"
+                          )}
+                        </dd>
+                        <dt className="text-muted-foreground">Semester</dt>
+                        <dd className="text-foreground">
+                          {c.totalHours}h total · can miss {Math.round(c.totalHours * 0.2 * 100) / 100}h ·
+                          missed {c.leavesUsed}h ·{" "}
+                          <span className="font-semibold">{c.hoursAvailableToMiss}h left</span>
+                        </dd>
+                      </dl>
                       <p className={`mt-1 text-xs ${RISK_STYLE[c.riskLevel]}`}>{riskMessage(c)}</p>
                     </div>
                   ))}
@@ -619,7 +643,7 @@ function AttendanceContent() {
                         </td>
                       </tr>
                     ) : (
-                      records.map((record) =>
+                      records.slice(0, visibleRecords).map((record) =>
                         editingId === record.id ? (
                           <tr key={record.id} className="frosted-inset">
                             <td className="px-6 py-4 text-sm text-foreground">
@@ -738,6 +762,13 @@ function AttendanceContent() {
                   </tbody>
                 </table>
               </div>
+              {records.length > visibleRecords && (
+                <div className="px-6 pb-5 pt-2 text-center">
+                  <Button variant="outline" onClick={() => setVisibleRecords((n) => n + 30)}>
+                    Show more ({records.length - visibleRecords} older)
+                  </Button>
+                </div>
+              )}
             </div>
           </>
         )}

@@ -14,7 +14,7 @@ import { EventListItem } from "@/components/EventListItem";
 import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { HolidayImportPanel } from "@/components/HolidayImportPanel";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, ChevronLeft, ChevronRight, Trash2, Upload, Palmtree, AlertCircle } from "lucide-react";
+import { Plus, X, ChevronLeft, ChevronRight, Trash2, Palmtree, AlertCircle } from "lucide-react";
 import {
   format,
   startOfToday,
@@ -252,23 +252,17 @@ function CalendarContent() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">Calendar</h1>
           {semesterId && (
             <div className="flex flex-wrap items-center gap-2">
-              {!showForm && (
+              {/* Import lives inside the Mark Holiday panel; this button only
+                  appears to close the import panel once it's open. */}
+              {showHolidayImport && (
                 <Button
                   variant="outline"
                   onClick={() => setShowHolidayImport((v) => !v)}
                 >
-                  {showHolidayImport ? (
-                    <>
-                      <X className="h-4 w-4" /> Cancel
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4" /> Import Holidays
-                    </>
-                  )}
+                  <X className="h-4 w-4" /> Close Import
                 </Button>
               )}
               {!showHolidayImport && !showForm && (
@@ -536,7 +530,19 @@ function CalendarContent() {
                     </div>
                     {newEvent.eventType === "holiday" && (
                       <p className="-mt-2 text-xs text-muted-foreground">
-                        No class-end reminders are sent on holidays.
+                        No class-end reminders are sent on holidays.{" "}
+                        {!editingEventId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              resetForm();
+                              setShowHolidayImport(true);
+                            }}
+                            className="font-semibold text-primary underline-offset-2 hover:underline"
+                          >
+                            Have your college&apos;s holiday list? Import it
+                          </button>
+                        )}
                       </p>
                     )}
 

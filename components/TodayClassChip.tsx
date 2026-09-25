@@ -178,8 +178,11 @@ export function TodayClassChip({
           <p className="font-mono text-xs text-muted-foreground">
             {formatTime12h(startTime)} - {formatTime12h(endTime)}
           </p>
-          {room && <p className="text-xs text-muted-foreground">Room: {room}</p>}
-          {instructor && <p className="text-xs text-muted-foreground">{instructor}</p>}
+          {(room || instructor) && (
+        <p className="truncate text-xs text-muted-foreground">
+          {[room, instructor].filter(Boolean).join(" · ")}
+        </p>
+      )}
         </button>
       </motion.div>
 

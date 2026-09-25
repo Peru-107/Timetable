@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { ACCENTS, useTheme, type ThemePreference } from "@/components/ThemeProvider";
+import { ACCENTS, STYLES, useTheme, type ThemePreference } from "@/components/ThemeProvider";
 import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2, Bell, BellOff, Send, Check } from "lucide-react";
 
 /**
@@ -70,7 +70,8 @@ function ProfileContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { semesterId } = useActiveSemester();
-  const { preference, setPreference, accent, setAccent, chartStyle, setChartStyle } = useTheme();
+  const { preference, setPreference, accent, setAccent, chartStyle, setChartStyle, designStyle, setDesignStyle } =
+    useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
   const [name, setName] = useState("");
@@ -378,7 +379,7 @@ function ProfileContent() {
       <DashboardNav semesterId={semesterId} />
 
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <h1 className="mb-8 text-3xl font-bold text-foreground">Profile</h1>
+        <h1 className="mb-8 font-display text-4xl font-bold tracking-tight text-foreground">Profile</h1>
 
         <div className="space-y-8">
           {/* Account details */}
@@ -494,13 +495,13 @@ function ProfileContent() {
             <p className="mb-4 text-sm text-muted-foreground">
               Auto switches to dark from 7pm to 6am based on your device&apos;s clock.
             </p>
-            <div className="frosted-inset inline-flex gap-1 rounded-xl p-1">
+            <div className="frosted-inset grid max-w-sm grid-cols-3 gap-1 rounded-xl p-1">
               {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => setPreference(value)}
-                  className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`flex items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-medium transition-colors ${
                     preference === value
                       ? "frosted text-primary"
                       : "text-muted-foreground hover:text-foreground"
@@ -510,6 +511,35 @@ function ProfileContent() {
                   {label}
                 </button>
               ))}
+            </div>
+
+            <h3 className="mb-1 mt-6 text-sm font-semibold text-foreground">Style</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              The look of cards and bars. Works with any colour and light or dark.
+            </p>
+            <div role="radiogroup" aria-label="Design style" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {STYLES.map((st) => {
+                const selected = designStyle === st.id;
+                return (
+                  <button
+                    key={st.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setDesignStyle(st.id)}
+                    className={`rounded-xl border p-3 text-left transition-colors ${
+                      selected
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:border-foreground/30"
+                    }`}
+                  >
+                    <span className={`block text-sm font-semibold ${selected ? "text-primary" : "text-foreground"}`}>
+                      {st.name}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{st.hint}</span>
+                  </button>
+                );
+              })}
             </div>
 
             <h3 className="mb-1 mt-6 text-sm font-semibold text-foreground">Colour</h3>

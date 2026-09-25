@@ -225,22 +225,26 @@ export default function DashboardPage() {
         {/* Semester Selection */}
         <div className="mb-6">
           <h2 className="sr-only">Semester</h2>
-          <div className="flex flex-wrap items-center gap-2">
+          {/* One line that scrolls sideways instead of wrapping, so the
+              edit button never ends up alone on a second row. */}
+          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
             {semesters.map((sem) => (
               <Button
                 key={sem.id}
                 variant={activeSemester?.id === sem.id ? "default" : "outline"}
                 onClick={() => handleSemesterChange(sem)}
+                className="flex-shrink-0"
               >
                 {sem.name}
               </Button>
             ))}
-            <Link href="/dashboard/semesters/new">
-              <Button variant="secondary">
-                <Plus className="h-4 w-4" />
-                New Semester
-              </Button>
-            </Link>
+            {semesters.length > 0 && (
+              <Link href="/dashboard/semesters/new" className="flex-shrink-0">
+                <Button variant="outline" size="icon" aria-label="New semester" title="New semester">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </Link>
+            )}
             {activeSemester && (
               <Button
                 variant="ghost"
@@ -254,20 +258,9 @@ export default function DashboardPage() {
                   }
                 }}
                 aria-label="Edit semester"
+                className="flex-shrink-0"
               >
                 {showEditSemester ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
-              </Button>
-            )}
-            {activeSemester && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDeleteSemester}
-                disabled={isDeletingSemester}
-                aria-label="Delete semester"
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
               </Button>
             )}
           </div>
@@ -322,9 +315,21 @@ export default function DashboardPage() {
                   required
                 />
               </div>
-              <Button type="submit" disabled={isSavingSemester}>
-                {isSavingSemester ? "Saving..." : "Save"}
-              </Button>
+              <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                <Button type="submit" disabled={isSavingSemester}>
+                  {isSavingSemester ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleDeleteSemester}
+                  disabled={isDeletingSemester}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {isDeletingSemester ? "Deleting..." : "Delete semester"}
+                </Button>
+              </div>
             </form>
           )}
         </div>
@@ -338,18 +343,6 @@ export default function DashboardPage() {
               semesterStartDate={activeSemester.startDate}
               onChange={() => fetchAttendanceStats(activeSemester.id)}
             />
-
-            {attendanceStats && (
-              <AttendanceChartCard
-                courses={courseStats}
-                overall={{
-                  percentage: attendanceStats.attendancePercentage,
-                  heldHours: attendanceStats.heldHours,
-                }}
-              />
-            )}
-
-            <SkipCalculatorCard courses={courseStats} />
 
             {/* Bento stats: 2 x 2 on phones, one row of 4 on desktop */}
             <motion.div
@@ -436,6 +429,18 @@ export default function DashboardPage() {
                 </p>
               </motion.div>
             </motion.div>
+
+            {attendanceStats && (
+              <AttendanceChartCard
+                courses={courseStats}
+                overall={{
+                  percentage: attendanceStats.attendancePercentage,
+                  heldHours: attendanceStats.heldHours,
+                }}
+              />
+            )}
+
+            <SkipCalculatorCard courses={courseStats} />
 
             {/* Study Notebook entry point - this is its only home on mobile,
                 where the bottom tab bar stays capped at 5 destinations */}

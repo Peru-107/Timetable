@@ -374,3 +374,98 @@ body::before {
 :root[data-theme="dark"][data-accent="graphite"] .hero-tile {
   background: linear-gradient(145deg, #4a4a55, #2a2a31 55%, #5c5c68);
 }
+
+/* ---- Design styles (Profile > Appearance > Style). "glass" (Apple +
+   bento + light glass) is the default and needs no overrides. Each style
+   only swaps surface tokens and effects, so colour themes, light/dark and
+   status colours keep working unchanged in all four. ---- */
+
+/* Apple-style bento: iOS system greys, flat tiles, system font, no page
+   light. Glass stays on the tab bar and top bar, as on iOS. */
+:root[data-style="apple"] {
+  --background: #f2f2f7;
+  --card: #f2f2f7;
+  --tile: #ffffff;
+  --tile-inset: #f2f2f7;
+  --tile-shadow: none;
+  --border: #e5e5ea;
+  --muted-foreground: #8a8a8e;
+}
+:root[data-style="apple"][data-theme="dark"] {
+  --background: #000000;
+  --card: #000000;
+  --tile: #1c1c1e;
+  --tile-inset: #2c2c2e;
+  --border: #38383a;
+  --muted-foreground: #8e8e93;
+}
+:root[data-style="apple"] body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter), system-ui, sans-serif;
+}
+:root[data-style="apple"] .font-display {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", var(--font-dm-sans), system-ui, sans-serif;
+}
+:root[data-style="apple"] .frosted,
+:root[data-style="apple"] .frosted-sm {
+  border-color: transparent;
+}
+:root[data-style="apple"] .hero-tile {
+  background: var(--primary);
+  box-shadow: none;
+}
+
+/* Bento only: solid tiles everywhere, no blur and no page light. */
+:root[data-style="bento"] .glass {
+  background: var(--tile);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+/* Minimal: flat surfaces, hairline borders, no shadows, gradients or blur. */
+:root[data-style="minimal"] {
+  --tile-shadow: none;
+}
+:root[data-style="minimal"] .frosted,
+:root[data-style="minimal"] .frosted-sm,
+:root[data-style="minimal"] .glass {
+  background: var(--background);
+  border: 1px solid var(--border);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-style="minimal"] .frosted-inset {
+  background: color-mix(in srgb, var(--foreground) 4%, var(--background));
+}
+:root[data-style="minimal"] .hero-tile {
+  background: var(--primary);
+  box-shadow: none;
+}
+:root[data-style="minimal"] .text-gradient-brand {
+  background: none;
+  -webkit-text-fill-color: var(--primary);
+  color: var(--primary);
+}
+:root[data-style="minimal"] .bg-gradient-brand {
+  background: var(--primary);
+}
+
+/* The soft page light belongs to the glass style only. */
+:root[data-style="apple"] body,
+:root[data-style="bento"] body,
+:root[data-style="minimal"] body {
+  background-image: none;
+}
+:root[data-style="apple"] body::before,
+:root[data-style="bento"] body::before,
+:root[data-style="minimal"] body::before {
+  display: none;
+}
+
+/* Solid heroes (Apple / Minimal) in dark mode: dark-mode accents are light,
+   so darken the tile to keep its white text readable. */
+:root[data-theme="dark"][data-style="apple"] .hero-tile,
+:root[data-theme="dark"][data-style="minimal"] .hero-tile {
+  background: color-mix(in srgb, var(--primary) 42%, #000);
+}

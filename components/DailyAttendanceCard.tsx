@@ -373,8 +373,7 @@ export function DailyAttendanceCard({
               Mark Attendance
             </h3>
             <p className="text-sm text-muted-foreground">
-              Swipe right for present, left for absent. Tap marks present, hold
-              for more.
+              Swipe → present, ← absent. Hold for more.
             </p>
           </div>
         </div>

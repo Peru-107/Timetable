@@ -154,7 +154,7 @@ function StudyCourseContent() {
         </Link>
 
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="font-display text-3xl font-bold text-foreground">
+          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">
             {courseName || "Course"}
           </h1>
           <input

@@ -15,6 +15,15 @@ export const ACCENTS = [
 ] as const;
 export type AccentId = (typeof ACCENTS)[number]["id"];
 
+export const STYLES = [
+  { id: "glass", name: "Bento + Glass", hint: "Apple-style tiles with soft frosted chrome" },
+  { id: "apple", name: "Apple", hint: "iOS greys, system font, flat tiles" },
+  { id: "bento", name: "Bento", hint: "Solid tiles, no blur or glow" },
+  { id: "minimal", name: "Minimal", hint: "Flat, hairline borders, no effects" },
+] as const;
+export type StyleId = (typeof STYLES)[number]["id"];
+const STYLE_STORAGE_KEY = "timetable-style";
+
 /** How the Overview draws per-subject attendance. */
 export type ChartStyle = "rings" | "sunflower";
 const CHART_STORAGE_KEY = "timetable-chart-style";
@@ -53,6 +62,8 @@ interface ThemeContextValue {
   setAccent: (accent: AccentId) => void;
   chartStyle: ChartStyle;
   setChartStyle: (style: ChartStyle) => void;
+  designStyle: StyleId;
+  setDesignStyle: (style: StyleId) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -61,6 +72,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("auto");
   const [accent, setAccentState] = useState<AccentId>("saffron");
   const [chartStyle, setChartStyleState] = useState<ChartStyle>("rings");
+  const [designStyle, setDesignStyleState] = useState<StyleId>("glass");
 
   const applyTheme = useCallback((pref: ThemePreference) => {
     const resolved = pref === "auto" ? computeAutoTheme() : pref;
@@ -75,6 +87,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setAccentState(storedAccent);
     document.documentElement.setAttribute("data-accent", storedAccent);
     setChartStyleState(readStored<ChartStyle>(CHART_STORAGE_KEY, "rings"));
+    const storedStyle = readStored<StyleId>(STYLE_STORAGE_KEY, "glass");
+    setDesignStyleState(storedStyle);
+    document.documentElement.setAttribute("data-style", storedStyle);
   }, [applyTheme]);
 
   useEffect(() => {
@@ -103,9 +118,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     writeStored(CHART_STORAGE_KEY, next);
   }, []);
 
+  const setDesignStyle = useCallback((next: StyleId) => {
+    setDesignStyleState(next);
+    writeStored(STYLE_STORAGE_KEY, next);
+    document.documentElement.setAttribute("data-style", next);
+  }, []);
+
   return (
     <ThemeContext.Provider
-      value={{ preference, setPreference, accent, setAccent, chartStyle, setChartStyle }}
+      value={{ preference, setPreference, accent, setAccent, chartStyle, setChartStyle, designStyle, setDesignStyle }}
     >
       {children}
     </ThemeContext.Provider>

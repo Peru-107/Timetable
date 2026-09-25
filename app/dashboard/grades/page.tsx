@@ -249,7 +249,7 @@ function GradesContent() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold text-foreground">Grades & CGPA</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">Grades & CGPA</h1>
           {semesterId && (
             <div className="flex items-center gap-2">
               {grades.length > 0 && (
@@ -294,7 +294,7 @@ function GradesContent() {
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="font-mono text-6xl font-bold text-primary">
+                    <p className="font-display text-6xl font-bold tracking-tight text-primary">
                       <AnimatedNumber value={cgpaData.cgpa} decimals={2} />
                     </p>
                     <p className="mt-2 text-lg text-muted-foreground">out of 4.0</p>

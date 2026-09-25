@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "motion/react";
 import { Calculator } from "lucide-react";
 
@@ -77,12 +78,18 @@ function Ring({ pct, color, empty }: { pct: number; color: string; empty: boolea
  * how many more classes you can miss and still finish the semester at 80%,
  * or how many you must attend in a row to get back to it.
  */
+// Shown before "Show all" - the subjects most at risk come first.
+const COLLAPSED_COUNT = 3;
+
 export function SkipCalculatorCard({ courses }: { courses: CourseSkipStat[] }) {
+  const [expanded, setExpanded] = useState(false);
   if (courses.length === 0) return null;
   const order = { critical: 0, warning: 1, safe: 2 } as const;
   const sorted = [...courses].sort(
     (a, b) =>
-      order[a.riskLevel] - order[b.riskLevel] || a.courseName.localeCompare(b.courseName)
+      order[a.riskLevel] - order[b.riskLevel] ||
+      (a.heldHours === 0 ? 1 : 0) - (b.heldHours === 0 ? 1 : 0) ||
+      a.attendancePercentage - b.attendancePercentage
   );
 
   return (
@@ -104,7 +111,7 @@ export function SkipCalculatorCard({ courses }: { courses: CourseSkipStat[] }) {
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.05 } } }}
       >
-        {sorted.map((c) => {
+        {(expanded ? sorted : sorted.slice(0, COLLAPSED_COUNT)).map((c) => {
           const empty = c.heldHours === 0;
           const v = empty ? { text: "No classes marked yet", tone: "none" as const } : verdict(c);
           return (
@@ -132,6 +139,16 @@ export function SkipCalculatorCard({ courses }: { courses: CourseSkipStat[] }) {
           );
         })}
       </motion.ul>
+      {sorted.length > COLLAPSED_COUNT && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-3 w-full rounded-xl py-2 text-sm font-semibold text-primary hover:bg-foreground/5"
+        >
+          {expanded ? "Show fewer" : `Show all ${sorted.length} subjects`}
+        </button>
+      )}
     </div>
   );
 }

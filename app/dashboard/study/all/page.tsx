@@ -46,7 +46,7 @@ function StudyAllContent() {
           <ArrowLeft className="h-4 w-4" /> Study Notebook
         </Link>
 
-        <h1 className="font-display mb-8 text-3xl font-bold text-foreground">
+        <h1 className="mb-8 font-display text-4xl font-bold tracking-tight text-foreground">
           Ask Across All Subjects
         </h1>
 

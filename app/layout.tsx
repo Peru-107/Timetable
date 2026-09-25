@@ -64,7 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             ThemeProvider's logic. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var d=document.documentElement,p=localStorage.getItem("timetable-theme-preference")||"auto",h=new Date().getHours();d.setAttribute("data-theme",p==="auto"?(h>=19||h<6?"dark":"light"):p);d.setAttribute("data-accent",localStorage.getItem("timetable-accent")||"saffron")}catch(e){}`,
+            __html: `try{var d=document.documentElement,p=localStorage.getItem("timetable-theme-preference")||"auto",h=new Date().getHours();d.setAttribute("data-theme",p==="auto"?(h>=19||h<6?"dark":"light"):p);d.setAttribute("data-accent",localStorage.getItem("timetable-accent")||"saffron");d.setAttribute("data-style",localStorage.getItem("timetable-style")||"glass")}catch(e){}`,
           }}
         />
       </head>

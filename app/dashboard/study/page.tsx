@@ -83,7 +83,7 @@ function StudyContent() {
       <DashboardNav semesterId={semesterId} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="font-display mb-2 text-3xl font-bold text-foreground">Study Notebook</h1>
+        <h1 className="mb-2 font-display text-4xl font-bold tracking-tight text-foreground">Study Notebook</h1>
         <p className="mb-8 text-muted-foreground">
           Upload lecture notes or slides per subject - one folder per course.
         </p>
