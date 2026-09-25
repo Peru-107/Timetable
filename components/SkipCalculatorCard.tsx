@@ -14,14 +14,14 @@ export interface CourseSkipStat {
   riskLevel: "safe" | "warning" | "critical";
 }
 
-const TONE = {
+export const TONE = {
   safe: "var(--success)",
   warning: "var(--warning)",
   critical: "var(--destructive)",
   none: "var(--muted-foreground)",
 } as const;
 
-function verdict(c: CourseSkipStat): { text: string; tone: keyof typeof TONE } {
+export function verdict(c: CourseSkipStat): { text: string; tone: keyof typeof TONE } {
   if (!c.canReachTarget) return { text: "Can't reach 80% this semester", tone: "critical" };
   if (c.classesToRecover > 0)
     return {

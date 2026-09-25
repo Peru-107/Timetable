@@ -70,7 +70,7 @@ function ProfileContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { semesterId } = useActiveSemester();
-  const { preference, setPreference, accent, setAccent } = useTheme();
+  const { preference, setPreference, accent, setAccent, chartStyle, setChartStyle } = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
   const [name, setName] = useState("");
@@ -541,6 +541,34 @@ function ProfileContent() {
                   </button>
                 );
               })}
+            </div>
+
+            <h3 className="mb-1 mt-6 text-sm font-semibold text-foreground">Attendance chart</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              How the Today screen shows each subject&apos;s attendance.
+            </p>
+            <div className="frosted-inset inline-flex gap-1 rounded-xl p-1">
+              {(
+                [
+                  { value: "rings", label: "Rings", hint: "overall + 3 to watch" },
+                  { value: "sunflower", label: "Sunflower", hint: "every subject" },
+                ] as const
+              ).map(({ value, label, hint }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setChartStyle(value)}
+                  aria-pressed={chartStyle === value}
+                  className={`flex flex-col items-start rounded-lg px-4 py-2 text-left text-sm font-medium transition-colors ${
+                    chartStyle === value
+                      ? "frosted text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                  <span className="text-xs font-normal text-muted-foreground">{hint}</span>
+                </button>
+              ))}
             </div>
           </div>
 

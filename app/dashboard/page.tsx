@@ -10,6 +10,7 @@ import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { DailyAttendanceCard } from "@/components/DailyAttendanceCard";
 import { SkipCalculatorCard, type CourseSkipStat } from "@/components/SkipCalculatorCard";
+import { AttendanceChartCard } from "@/components/AttendanceChartCard";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -337,6 +338,16 @@ export default function DashboardPage() {
               semesterStartDate={activeSemester.startDate}
               onChange={() => fetchAttendanceStats(activeSemester.id)}
             />
+
+            {attendanceStats && (
+              <AttendanceChartCard
+                courses={courseStats}
+                overall={{
+                  percentage: attendanceStats.attendancePercentage,
+                  heldHours: attendanceStats.heldHours,
+                }}
+              />
+            )}
 
             <SkipCalculatorCard courses={courseStats} />
 

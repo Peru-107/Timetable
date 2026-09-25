@@ -15,6 +15,10 @@ export const ACCENTS = [
 ] as const;
 export type AccentId = (typeof ACCENTS)[number]["id"];
 
+/** How the Overview draws per-subject attendance. */
+export type ChartStyle = "rings" | "sunflower";
+const CHART_STORAGE_KEY = "timetable-chart-style";
+
 const STORAGE_KEY = "timetable-theme-preference";
 export const ACCENT_STORAGE_KEY = "timetable-accent";
 
@@ -47,6 +51,8 @@ interface ThemeContextValue {
   setPreference: (preference: ThemePreference) => void;
   accent: AccentId;
   setAccent: (accent: AccentId) => void;
+  chartStyle: ChartStyle;
+  setChartStyle: (style: ChartStyle) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -54,6 +60,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("auto");
   const [accent, setAccentState] = useState<AccentId>("saffron");
+  const [chartStyle, setChartStyleState] = useState<ChartStyle>("rings");
 
   const applyTheme = useCallback((pref: ThemePreference) => {
     const resolved = pref === "auto" ? computeAutoTheme() : pref;
@@ -67,6 +74,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const storedAccent = readStored<AccentId>(ACCENT_STORAGE_KEY, "saffron");
     setAccentState(storedAccent);
     document.documentElement.setAttribute("data-accent", storedAccent);
+    setChartStyleState(readStored<ChartStyle>(CHART_STORAGE_KEY, "rings"));
   }, [applyTheme]);
 
   useEffect(() => {
@@ -90,8 +98,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute("data-accent", next);
   }, []);
 
+  const setChartStyle = useCallback((next: ChartStyle) => {
+    setChartStyleState(next);
+    writeStored(CHART_STORAGE_KEY, next);
+  }, []);
+
   return (
-    <ThemeContext.Provider value={{ preference, setPreference, accent, setAccent }}>
+    <ThemeContext.Provider
+      value={{ preference, setPreference, accent, setAccent, chartStyle, setChartStyle }}
+    >
       {children}
     </ThemeContext.Provider>
   );
