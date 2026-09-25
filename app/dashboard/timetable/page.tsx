@@ -1081,13 +1081,6 @@ function TimetableContent() {
                   </Button>
                 </div>
               </div>
-              {courses.length === 0 && (
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Add each course you&apos;re taking this semester. You&apos;ll need at
-                  least one before you can add classes, mark attendance, or record
-                  grades.
-                </p>
-              )}
 
               {courses.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
@@ -1261,11 +1254,6 @@ function TimetableContent() {
               onClose={() => setShowUpload(false)}
               title="Upload Timetable"
             >
-                <p className="mb-4 text-sm text-muted-foreground">
-                  List your own subjects below, then upload a photo or PDF of your
-                  full class timetable. We&apos;ll read it and add only your classes
-                  to your schedule below.
-                </p>
                 <div className="space-y-4">
                   <div>
                     <label className="mb-2 block text-sm font-medium text-foreground">
@@ -1333,13 +1321,6 @@ function TimetableContent() {
                   : "Edit Class"
               }
             >
-                {entryIsExtra && !editingEntryId && (
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    A one-time lecture on a specific date - like a cancelled class held on
-                    Saturday instead. Mark it like any class. Your weekly timetable and the
-                    semester&apos;s total hours stay the same.
-                  </p>
-                )}
                 {entryError && (
                   <div className="frosted-inset mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4 shrink-0" />

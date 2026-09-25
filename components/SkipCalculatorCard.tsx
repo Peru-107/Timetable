@@ -121,10 +121,7 @@ export function SkipCalculatorCard({ courses }: { courses: CourseSkipStat[] }) {
           <Calculator className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-foreground">Can I skip?</h3>
-          <p className="text-sm text-muted-foreground">
-            Per subject, against the {sorted[0]?.minAttendance ?? 80}% attendance rule.
-          </p>
+          <h3 className="text-lg font-semibold text-foreground">Hours You Can Miss</h3>
         </div>
       </div>
       <motion.ul

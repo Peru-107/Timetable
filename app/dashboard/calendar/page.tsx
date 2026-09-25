@@ -529,8 +529,7 @@ function CalendarContent() {
                       )}
                     </div>
                     {newEvent.eventType === "holiday" && (
-                      <p className="-mt-2 text-xs text-muted-foreground">
-                        No class-end reminders are sent on holidays.{" "}
+                      <p className="-mt-2 text-xs">
                         {!editingEventId && (
                           <button
                             type="button"
@@ -540,7 +539,7 @@ function CalendarContent() {
                             }}
                             className="font-semibold text-primary underline-offset-2 hover:underline"
                           >
-                            Have your college&apos;s holiday list? Import it
+                            Import holiday list
                           </button>
                         )}
                       </p>

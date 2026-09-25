@@ -413,9 +413,6 @@ export function DailyAttendanceCard({
             <h3 className="text-lg font-semibold text-foreground">
               Mark Attendance
             </h3>
-            <p className="text-sm text-muted-foreground">
-              Swipe → present, ← absent. Hold for more.
-            </p>
           </div>
         </div>
 

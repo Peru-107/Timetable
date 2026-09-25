@@ -83,10 +83,6 @@ export function ShareTimetableSheet({
 
   return (
     <ResponsiveSheet open={open} onClose={onClose} title="Share timetable">
-      <p className="mb-4 text-sm text-muted-foreground">
-        Classmates see your subjects and weekly classes only - never your attendance or grades -
-        and can copy them into their own account.
-      </p>
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : !url ? (

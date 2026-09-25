@@ -46,8 +46,7 @@ export function WhatIfPlanner({ courses }: { courses: PlannerCourse[] }) {
           <Wand2 className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-foreground">What if I skip…</h2>
-          <p className="text-sm text-muted-foreground">See the effect before you miss a class.</p>
+          <h2 className="text-xl font-semibold text-foreground">Skip Planner</h2>
         </div>
       </div>
 
@@ -105,7 +104,7 @@ export function WhatIfPlanner({ courses }: { courses: PlannerCourse[] }) {
           </p>
         </div>
         <div className="frosted-inset rounded-xl p-3">
-          <p className="text-xs text-muted-foreground">Semester end, if you attend the rest</p>
+          <p className="text-xs text-muted-foreground">At semester end</p>
           <p
             className={`font-mono text-2xl font-bold ${
               semesterPct >= c.minAttendance ? "text-success" : "text-destructive"

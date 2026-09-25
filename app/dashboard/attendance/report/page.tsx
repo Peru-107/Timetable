@@ -142,12 +142,6 @@ function ReportContent() {
               </tbody>
             </table>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Hours throughout. &ldquo;%&rdquo; counts classes held so far (cancelled classes excluded).
-            &ldquo;Left&rdquo; is
-            what&apos;s left of the semester&apos;s {100 - stats.minAttendance}% allowance, based on{" "}
-            {stats.totalHours}h of classes this semester.
-          </p>
         </article>
       </div>
     </div>

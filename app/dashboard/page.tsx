@@ -530,9 +530,6 @@ export default function DashboardPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">Study Notebook</p>
-                  <p className="text-sm text-muted-foreground">
-                    Upload notes and ask AI about any subject
-                  </p>
                 </div>
                 <ArrowRight className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1" />
               </Link>

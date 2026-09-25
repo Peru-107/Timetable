@@ -128,10 +128,7 @@ export function StudyChat({ semesterId, courseId, scopeLabel }: StudyChatProps) 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : messages.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Ask a question about {scopeLabel.toLowerCase()} - answers come from what you&apos;ve
-            uploaded, unless you turn on web search below.
-          </p>
+          <p className="text-sm text-muted-foreground">No messages yet</p>
         ) : (
           <AnimatePresence initial={false}>
             {messages.map((m) => (

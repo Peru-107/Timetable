@@ -362,7 +362,7 @@ function AttendanceContent() {
               >
                 <motion.div variants={statCardVariants} className="frosted rounded-2xl p-6">
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                    Cumulative Attendance
+                    Attendance So Far
                   </h3>
                   {stats.heldHours > 0 ? (
                     <p
@@ -385,9 +385,7 @@ function AttendanceContent() {
                     {stats.attendedHours}/{stats.heldHours}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    held so far · {stats.minAttendance}% of that ={" "}
-                    {Math.round(stats.heldHours * stats.minAttendance) / 100}h
-                    needed now
+                    Needed now: {Math.round(stats.heldHours * stats.minAttendance) / 100}h
                   </p>
                 </motion.div>
 
@@ -399,8 +397,7 @@ function AttendanceContent() {
                     <AnimatedNumber value={stats.leavesAvailable} suffix="h" />
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    of {Math.round(stats.totalHours * (100 - stats.minAttendance)) / 100}h allowed (
-                    {stats.totalHours}h semester × {100 - stats.minAttendance}%)
+                    of {Math.round(stats.totalHours * (100 - stats.minAttendance)) / 100}h allowed
                   </p>
                 </motion.div>
 
@@ -435,13 +432,8 @@ function AttendanceContent() {
             {statsByCourse.length > 0 && (
               <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="text-xl font-semibold text-foreground">
-                  By Subject
+                  Attendance by Subject
                 </h2>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Percentages count classes held so far. Each subject has its own
-                  semester-long hour total (weekly schedule × weeks in the semester) and its
-                  own {stats?.minAttendance ?? 80}% requirement.
-                </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {statsByCourse.map((c) => (
                     <div key={c.courseId} className="frosted-inset rounded-xl p-4">

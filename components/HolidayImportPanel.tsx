@@ -160,10 +160,6 @@ export function HolidayImportPanel({ semesterId, onImported, onClose }: HolidayI
 
       {holidays.length === 0 && !resultMessage && (
         <>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Upload the holiday list your institute sent you (a photo or PDF) - we'll read it and
-            let you pick which days to add.
-          </p>
           <Button
             variant="outline"
             disabled={isExtracting}
@@ -199,8 +195,7 @@ export function HolidayImportPanel({ semesterId, onImported, onClose }: HolidayI
         <>
           <div className="mb-3 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Found {holidays.length} holiday{holidays.length === 1 ? "" : "s"} - review and pick
-              which to add.
+              Found {holidays.length} holiday{holidays.length === 1 ? "" : "s"}
             </p>
             <div className="flex gap-2 text-xs">
               <button

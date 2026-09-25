@@ -106,9 +106,6 @@ function StudyContent() {
                 </div>
                 <div>
                   <p className="font-medium text-foreground">Ask Across All Subjects</p>
-                  <p className="text-sm text-muted-foreground">
-                    One chat that draws on everything you&apos;ve uploaded this semester
-                  </p>
                 </div>
               </Link>
             </motion.div>

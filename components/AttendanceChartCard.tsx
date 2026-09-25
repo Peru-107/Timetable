@@ -89,14 +89,14 @@ export function AttendanceChartCard({
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Attendance by subject
           </h3>
-          <p className="text-xs text-muted-foreground">{overall.min}% needed · tap a subject</p>
+          <p className="text-xs text-muted-foreground">{overall.min}% needed</p>
         </div>
         <StyleSwitch value={chartStyle} onChange={setChartStyle} />
       </div>
 
       {marked.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
-          Mark a few classes and your subjects will show up here.
+          No classes marked yet
         </p>
       ) : (
         <AnimatePresence mode="wait" initial={false}>
@@ -132,7 +132,7 @@ export function AttendanceChartCard({
             </span>
           </>
         ) : (
-          <span className="text-muted-foreground">Tap a ring or petal to see if you can skip.</span>
+          <span className="text-muted-foreground">Select a subject</span>
         )}
       </div>
     </div>

@@ -86,9 +86,6 @@ export default function NewSemesterPage() {
                 placeholder="e.g., Fall 2024, Spring 2025"
                 required
               />
-              <p className="mt-1 text-sm text-muted-foreground">
-                Use a descriptive name like &quot;Fall 2024&quot; or &quot;Semester 5&quot;
-              </p>
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -135,10 +132,6 @@ export default function NewSemesterPage() {
                 }
                 required
               />
-              <p className="mt-1 text-sm text-muted-foreground">
-                The number of teaching weeks, not calendar weeks - this drives your
-                attendance hour totals, so exclude breaks/holidays.
-              </p>
             </div>
 
             <div>
@@ -156,9 +149,6 @@ export default function NewSemesterPage() {
                 }
                 required
               />
-              <p className="mt-1 text-sm text-muted-foreground">
-                What your university requires - usually 75% or 80%.
-              </p>
             </div>
 
             {error && (
@@ -173,18 +163,6 @@ export default function NewSemesterPage() {
             </Button>
           </form>
 
-          <div className="frosted-inset mt-8 rounded-2xl p-4">
-            <p className="mb-2 text-sm font-semibold text-foreground">Next Steps</p>
-            <p className="text-sm text-muted-foreground">
-              After creating a semester, you&apos;ll be able to:
-            </p>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-muted-foreground">
-              <li>Add courses to the semester</li>
-              <li>Create your timetable</li>
-              <li>Track attendance and grades</li>
-              <li>Set important deadlines and exams</li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>

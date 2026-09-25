@@ -392,10 +392,6 @@ function GradesContent() {
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Max marks default to 50/50 - change them if a course has a different split
-                    (e.g. an ICA-only capstone: set TEE Max to 0).
-                  </p>
 
                   <Button type="submit" className="w-full">
                     Add Grade

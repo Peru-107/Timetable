@@ -492,9 +492,6 @@ function ProfileContent() {
           {/* Appearance */}
           <div className="frosted rounded-2xl p-6">
             <h2 className="mb-1 text-xl font-semibold text-foreground">Appearance</h2>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Auto switches to dark from 7pm to 6am based on your device&apos;s clock.
-            </p>
             <div className="frosted-inset grid max-w-sm grid-cols-3 gap-1 rounded-xl p-1">
               {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
                 <button
@@ -514,9 +511,6 @@ function ProfileContent() {
             </div>
 
             <h3 className="mb-1 mt-6 text-sm font-semibold text-foreground">Style</h3>
-            <p className="mb-3 text-sm text-muted-foreground">
-              The look of cards and bars. Works with any colour and light or dark.
-            </p>
             <div role="radiogroup" aria-label="Design style" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {STYLES.map((st) => {
                 const selected = designStyle === st.id;
@@ -543,10 +537,6 @@ function ProfileContent() {
             </div>
 
             <h3 className="mb-1 mt-6 text-sm font-semibold text-foreground">Colour</h3>
-            <p className="mb-3 text-sm text-muted-foreground">
-              Changes buttons, highlights and the &ldquo;In class now&rdquo; card. Present and
-              absent always stay green and red.
-            </p>
             <div role="radiogroup" aria-label="Colour theme" className="flex flex-wrap gap-3">
               {ACCENTS.map((a) => {
                 const selected = accent === a.id;
@@ -574,9 +564,6 @@ function ProfileContent() {
             </div>
 
             <h3 className="mb-1 mt-6 text-sm font-semibold text-foreground">Attendance chart</h3>
-            <p className="mb-3 text-sm text-muted-foreground">
-              How the Today screen shows each subject&apos;s attendance.
-            </p>
             <div className="frosted-inset inline-flex gap-1 rounded-xl p-1">
               {(
                 [
@@ -604,12 +591,10 @@ function ProfileContent() {
 
           {/* Notifications */}
           <div className="frosted rounded-2xl p-6">
-            <h2 className="mb-1 text-xl font-semibold text-foreground">Class-End Reminders</h2>
-            <p className="mb-4 text-sm text-muted-foreground">
-              {notifSupported
-                ? "Get a notification right when a class ends, with one-tap Present / Absent buttons - no need to open the app. On iPhone, add this app to your Home Screen first (Share -> Add to Home Screen) for notifications to work."
-                : "This browser doesn't support push notifications."}
-            </p>
+            <h2 className="mb-4 text-xl font-semibold text-foreground">Class Reminders</h2>
+            {!notifSupported && (
+              <p className="mb-4 text-sm text-muted-foreground">Not supported in this browser</p>
+            )}
 
             {notifError && (
               <div className="frosted-inset mb-4 flex items-center gap-2 rounded-xl p-3 text-sm text-destructive">
@@ -621,8 +606,7 @@ function ProfileContent() {
             {needsHomeScreenInstall ? (
               <div className="frosted-inset flex items-center gap-2 rounded-xl p-3 text-sm text-foreground">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 text-primary" />
-                Add this app to your Home Screen first (Share -&gt; Add to Home Screen), then open it
-                from there to turn on reminders - Safari won&apos;t allow it in a regular tab.
+                Open from Home Screen (Share → Add to Home Screen)
               </div>
             ) : (
               notifSupported && (
@@ -663,11 +647,9 @@ function ProfileContent() {
 
           {/* Danger Zone */}
           <div className="frosted rounded-2xl border border-destructive/40 p-6">
-            <h2 className="mb-1 text-xl font-semibold text-destructive">Danger Zone</h2>
+            <h2 className="mb-1 text-xl font-semibold text-destructive">Delete Account</h2>
             <p className="mb-4 text-sm text-muted-foreground">
-              Permanently delete your account and everything in it - semesters, courses,
-              timetable, attendance records, grades, and calendar events. This cannot be
-              undone.
+              Deletes all your data permanently.
             </p>
 
             {!showDeleteConfirm ? (
