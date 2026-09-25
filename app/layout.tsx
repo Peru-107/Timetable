@@ -5,6 +5,8 @@ import SessionProvider from "@/components/SessionProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { SmoothScroll } from "@/components/SmoothScroll";
+import { Toaster } from "@/components/Toaster";
+import { OfflineSync } from "@/components/OfflineSync";
 
 // Body/UI text: Inter is built for dense-interface legibility, unlike DM
 // Sans's small-size-optimized, low-stroke-contrast letterforms which read
@@ -74,6 +76,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
             <ServiceWorkerRegister />
             <SmoothScroll />
+            <Toaster />
+            <OfflineSync />
           </SessionProvider>
         </ThemeProvider>
       </body>

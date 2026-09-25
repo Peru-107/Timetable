@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
+import { deleteMark, saveMark } from "@/lib/attendanceSync";
+import { showToast } from "@/lib/toast";
 import {
   ChevronLeft,
   ChevronRight,
@@ -53,6 +55,8 @@ const DAYS = [
   "Friday",
   "Saturday",
 ];
+
+const STATUS_WORD = { PRESENT: "present", ABSENT: "absent", CANCELLED: "cancelled" } as const;
 
 const toMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(":").map(Number);
@@ -248,6 +252,14 @@ export function DailyAttendanceCard({
       .catch(() => setHolidays([]));
   }, [semesterId]);
 
+  // Bumped when marks saved offline finish syncing, to reload real records.
+  const [syncTick, setSyncTick] = useState(0);
+  useEffect(() => {
+    const onSynced = () => setSyncTick((t) => t + 1);
+    window.addEventListener("attendance-synced", onSynced);
+    return () => window.removeEventListener("attendance-synced", onSynced);
+  }, []);
+
   useEffect(() => {
     if (!semesterId) return;
     fetch(`/api/attendance?semesterId=${semesterId}`)
@@ -268,68 +280,74 @@ export function DailyAttendanceCard({
         setRecordsByCourseFallback(byCourseFallback);
       })
       .catch((error) => console.error("Error fetching attendance:", error));
-  }, [semesterId, selectedDate]);
+  }, [semesterId, selectedDate, syncTick]);
 
-  const markAttendance = async (
-    entry: TimetableEntry,
-    status: "PRESENT" | "ABSENT" | "CANCELLED",
-  ) => {
-    try {
-      const res = await fetch("/api/attendance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId: entry.courseId,
-          timetableEntryId: entry.id,
-          date: selectedDate.toISOString(),
-          status,
-          hoursDuration: computeHoursFromTimes(entry.startTime, entry.endTime),
-        }),
-      });
-      if (res.ok) {
-        const record: AttendanceRecord = await res.json();
-        setRecordsByEntry((prev) => ({ ...prev, [entry.id]: record }));
-        // The server may have adopted a previously-untagged same-day record
-        // for this course - drop it from the fallback so it isn't also
-        // shown for a different entry of the same course.
-        setRecordsByCourseFallback((prev) => {
-          if (!(entry.courseId in prev)) return prev;
-          const next = { ...prev };
-          delete next[entry.courseId];
-          return next;
-        });
-        onChange?.();
-      }
-    } catch (error) {
-      console.error("Error marking attendance:", error);
+  const setEntryRecord = (entry: TimetableEntry, record: AttendanceRecord | null) => {
+    setRecordsByEntry((prev) => {
+      const next = { ...prev };
+      if (record) next[entry.id] = record;
+      else delete next[entry.id];
+      return next;
+    });
+    // The server may have adopted a previously-untagged same-day record
+    // for this course - drop it from the fallback so it isn't also shown
+    // for a different entry of the same course.
+    setRecordsByCourseFallback((prev) => {
+      if (!(entry.courseId in prev)) return prev;
+      const next = { ...prev };
+      delete next[entry.courseId];
+      return next;
+    });
+  };
+
+  const writeMark = async (entry: TimetableEntry, status: AttendanceRecord["status"]) => {
+    const result = await saveMark({
+      courseId: entry.courseId,
+      timetableEntryId: entry.id,
+      date: selectedDate.toISOString(),
+      status,
+      hoursDuration: computeHoursFromTimes(entry.startTime, entry.endTime),
+    });
+    if ("error" in result) {
+      showToast({ message: result.error });
+      return null;
     }
+    setEntryRecord(entry, result.record as AttendanceRecord);
+    onChange?.();
+    return result;
+  };
+
+  const markAttendance = async (entry: TimetableEntry, status: AttendanceRecord["status"]) => {
+    const previous = getRecordForEntry(entry);
+    const result = await writeMark(entry, status);
+    if (!result) return;
+    showToast({
+      message: `${entry.course.name}: ${STATUS_WORD[status]}${result.queued ? " (saved offline)" : ""}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        if (previous) {
+          await writeMark(entry, previous.status);
+        } else if (await deleteMark(result.record.id)) {
+          setEntryRecord(entry, null);
+          onChange?.();
+        }
+      },
+    });
   };
 
   const clearAttendance = async (entry: TimetableEntry) => {
     const record = getRecordForEntry(entry);
     if (!record) return;
-    try {
-      const res = await fetch(`/api/attendance?id=${record.id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setRecordsByEntry((prev) => {
-          if (!(entry.id in prev)) return prev;
-          const next = { ...prev };
-          delete next[entry.id];
-          return next;
-        });
-        setRecordsByCourseFallback((prev) => {
-          if (!(entry.courseId in prev)) return prev;
-          const next = { ...prev };
-          delete next[entry.courseId];
-          return next;
-        });
-        onChange?.();
-      }
-    } catch (error) {
-      console.error("Error clearing attendance:", error);
-    }
+    if (!(await deleteMark(record.id))) return;
+    setEntryRecord(entry, null);
+    onChange?.();
+    showToast({
+      message: `${entry.course.name}: mark cleared`,
+      actionLabel: "Undo",
+      onAction: () => {
+        writeMark(entry, record.status);
+      },
+    });
   };
 
   const deleteEntry = async (id: string) => {
@@ -363,6 +381,20 @@ export function DailyAttendanceCard({
         : !holiday && entry.dayOfWeek === selectedDate.getDay()
     )
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  // Home-screen icon badge: today's classes that have ended but aren't
+  // marked yet (supported on installed PWAs; a no-op elsewhere).
+  const unmarkedEnded = isToday
+    ? entriesForDay.filter((e) => toMinutes(e.endTime) <= nowMinutes && !getRecordForEntry(e)).length
+    : null;
+  useEffect(() => {
+    if (unmarkedEnded === null) return;
+    const nav = navigator as Navigator & {
+      setAppBadge?: (n?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    (unmarkedEnded > 0 ? nav.setAppBadge?.(unmarkedEnded) : nav.clearAppBadge?.())?.catch(() => {});
+  }, [unmarkedEnded]);
 
   const dateLabel = selectedDate.toLocaleDateString(undefined, {
     weekday: "long",

@@ -15,6 +15,8 @@ import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayCl
 import { ScheduleClassChip } from "@/components/ScheduleClassChip";
 import { CoursePill } from "@/components/CoursePill";
 import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { deleteMark, saveMark } from "@/lib/attendanceSync";
+import { showToast } from "@/lib/toast";
 import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseScheduleRows";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes, formatTime12h, localDateKey, startOfDay } from "@/lib/attendanceUtils";
@@ -560,62 +562,72 @@ function TimetableContent() {
     }
   };
 
+  const setTodayRecord = (entry: TimetableEntry, record: AttendanceRecord | null) => {
+    setTodayByEntry((prev) => {
+      const next = { ...prev };
+      if (record) next[entry.id] = record;
+      else delete next[entry.id];
+      return next;
+    });
+    // The server may have adopted a previously-untagged same-day record
+    // for this course - drop it from the fallback so it isn't also shown
+    // for a different entry of the same course.
+    setTodayByCourseFallback((prev) => {
+      if (!(entry.courseId in prev)) return prev;
+      const next = { ...prev };
+      delete next[entry.courseId];
+      return next;
+    });
+  };
+
+  const writeTodayMark = async (entry: TimetableEntry, entryStatus: "PRESENT" | "ABSENT" | "CANCELLED") => {
+    const result = await saveMark({
+      courseId: entry.courseId,
+      timetableEntryId: entry.id,
+      date: startOfDay(new Date()).toISOString(),
+      status: entryStatus,
+      hoursDuration: computeHoursFromTimes(entry.startTime, entry.endTime),
+    });
+    if ("error" in result) {
+      showToast({ message: result.error });
+      return null;
+    }
+    setTodayRecord(entry, result.record as AttendanceRecord);
+    return result;
+  };
+
   const markAttendance = async (
     entry: TimetableEntry,
     entryStatus: "PRESENT" | "ABSENT" | "CANCELLED"
   ) => {
-    try {
-      const res = await fetch("/api/attendance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          courseId: entry.courseId,
-          timetableEntryId: entry.id,
-          date: startOfDay(new Date()).toISOString(),
-          status: entryStatus,
-          hoursDuration: computeHoursFromTimes(entry.startTime, entry.endTime),
-        }),
-      });
-      if (res.ok) {
-        const record: AttendanceRecord = await res.json();
-        setTodayByEntry((prev) => ({ ...prev, [entry.id]: record }));
-        // The server may have adopted a previously-untagged same-day record
-        // for this course - drop it from the fallback so it isn't also
-        // shown for a different entry of the same course.
-        setTodayByCourseFallback((prev) => {
-          if (!(entry.courseId in prev)) return prev;
-          const next = { ...prev };
-          delete next[entry.courseId];
-          return next;
-        });
-      }
-    } catch (error) {
-      console.error("Error marking attendance:", error);
-    }
+    const previous = getTodayRecordForEntry(entry);
+    const result = await writeTodayMark(entry, entryStatus);
+    if (!result) return;
+    showToast({
+      message: `${entry.course.name}: ${entryStatus.toLowerCase()}${result.queued ? " (saved offline)" : ""}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        if (previous) {
+          await writeTodayMark(entry, previous.status as "PRESENT" | "ABSENT" | "CANCELLED");
+        } else if (await deleteMark(result.record.id)) {
+          setTodayRecord(entry, null);
+        }
+      },
+    });
   };
 
   const clearAttendance = async (entry: TimetableEntry) => {
     const record = getTodayRecordForEntry(entry);
     if (!record) return;
-    try {
-      const res = await fetch(`/api/attendance?id=${record.id}`, { method: "DELETE" });
-      if (res.ok) {
-        setTodayByEntry((prev) => {
-          if (!(entry.id in prev)) return prev;
-          const next = { ...prev };
-          delete next[entry.id];
-          return next;
-        });
-        setTodayByCourseFallback((prev) => {
-          if (!(entry.courseId in prev)) return prev;
-          const next = { ...prev };
-          delete next[entry.courseId];
-          return next;
-        });
-      }
-    } catch (error) {
-      console.error("Error clearing attendance:", error);
-    }
+    if (!(await deleteMark(record.id))) return;
+    setTodayRecord(entry, null);
+    showToast({
+      message: `${entry.course.name}: mark cleared`,
+      actionLabel: "Undo",
+      onAction: () => {
+        writeTodayMark(entry, record.status as "PRESENT" | "ABSENT" | "CANCELLED");
+      },
+    });
   };
 
   // "HH:MM" is zero-padded 24-hour, so string order is chronological order.
