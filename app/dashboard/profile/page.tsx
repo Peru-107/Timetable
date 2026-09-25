@@ -9,7 +9,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { useTheme, type ThemePreference } from "@/components/ThemeProvider";
-import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2, Bell, BellOff } from "lucide-react";
+import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2, Bell, BellOff, Send } from "lucide-react";
 
 /**
  * Notification.requestPermission(), serviceWorker.ready, and pushManager.subscribe()
@@ -94,6 +94,8 @@ function ProfileContent() {
   const [notifBusy, setNotifBusy] = useState(false);
   const [notifError, setNotifError] = useState("");
   const [needsHomeScreenInstall, setNeedsHomeScreenInstall] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -204,6 +206,49 @@ function ProfileContent() {
       );
     } finally {
       setNotifBusy(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    setIsSendingTest(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setTestResult({ type: "error", message: data.error || "Couldn't send a test notification." });
+      } else if (data.devices === 0) {
+        // The server has no subscription for this account even though this
+        // device does - re-link it and ask for another try.
+        setNotifSubscribed(false);
+        setTestResult({
+          type: "error",
+          message:
+            "This device isn't linked to your account on the server. Tap Turn On Reminders again to re-link it.",
+        });
+      } else if (data.delivered > 0) {
+        setTestResult({
+          type: "success",
+          message: `Sent to ${data.delivered} device${data.delivered === 1 ? "" : "s"}. If nothing appears within a minute, check that notifications are allowed for this app in your phone's Settings, and that Focus / Do Not Disturb is off.`,
+        });
+      } else if (data.removed > 0) {
+        setNotifSubscribed(false);
+        setTestResult({
+          type: "error",
+          message:
+            "Your phone's push registration had expired, so it was removed. Tap Turn On Reminders to register again.",
+        });
+      } else {
+        const code = data.failures?.[0]?.statusCode;
+        setTestResult({
+          type: "error",
+          message: `The push service rejected it${code ? ` (error ${code})` : ""}. Turn reminders off and on again; if it keeps failing, tell us this code.`,
+        });
+      }
+    } catch {
+      setTestResult({ type: "error", message: "Couldn't reach the server. Check your connection and try again." });
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -492,15 +537,38 @@ function ProfileContent() {
               </div>
             ) : (
               notifSupported && (
-                <Button
-                  variant={notifSubscribed ? "outline" : "default"}
-                  onClick={notifSubscribed ? handleDisableNotifications : handleEnableNotifications}
-                  disabled={notifBusy}
-                >
-                  {notifSubscribed ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
-                  {notifBusy ? "Working..." : notifSubscribed ? "Turn Off Reminders" : "Turn On Reminders"}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant={notifSubscribed ? "outline" : "default"}
+                    onClick={notifSubscribed ? handleDisableNotifications : handleEnableNotifications}
+                    disabled={notifBusy}
+                  >
+                    {notifSubscribed ? <BellOff className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                    {notifBusy ? "Working..." : notifSubscribed ? "Turn Off Reminders" : "Turn On Reminders"}
+                  </Button>
+                  {notifSubscribed && (
+                    <Button variant="outline" onClick={handleSendTest} disabled={isSendingTest}>
+                      <Send className="h-4 w-4" />
+                      {isSendingTest ? "Sending..." : "Send Test Notification"}
+                    </Button>
+                  )}
+                </div>
               )
+            )}
+
+            {testResult && (
+              <div
+                className={`frosted-inset mt-4 flex items-start gap-2 rounded-xl p-3 text-sm ${
+                  testResult.type === "success" ? "text-success" : "text-destructive"
+                }`}
+              >
+                {testResult.type === "success" ? (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                )}
+                {testResult.message}
+              </div>
             )}
           </div>
 

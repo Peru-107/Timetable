@@ -37,16 +37,58 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, description, eventType, dueDate, semesterId } = await req.json();
+    const { title, description, eventType, dueDate, endDate, semesterId } = await req.json();
+
+    if (!title || !String(title).trim()) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    }
+    const start = new Date(dueDate);
+    if (Number.isNaN(start.getTime())) {
+      return NextResponse.json({ error: "A valid date is required" }, { status: 400 });
+    }
+
+    const semester = await prisma.semester.findFirst({
+      where: { id: semesterId, userId: session.user.id },
+      select: { id: true },
+    });
+    if (!semester) {
+      return NextResponse.json({ error: "Semester not found" }, { status: 404 });
+    }
+
+    // A holiday range (e.g. a week-long Diwali break) becomes one event per
+    // day, so every per-day check - the calendar grid, "is today a holiday",
+    // skipping reminders - keeps working off a single date.
+    if (eventType === "holiday" && endDate) {
+      const end = new Date(endDate);
+      if (Number.isNaN(end.getTime()) || end < start) {
+        return NextResponse.json({ error: "End date must be on or after the start date" }, { status: 400 });
+      }
+      const dayMs = 24 * 60 * 60 * 1000;
+      const days = Math.round((end.getTime() - start.getTime()) / dayMs) + 1;
+      if (days > 60) {
+        return NextResponse.json({ error: "A holiday range can be at most 60 days" }, { status: 400 });
+      }
+      const created = await prisma.calendarEvent.createMany({
+        data: Array.from({ length: days }, (_, i) => ({
+          userId: session.user.id,
+          semesterId,
+          title: String(title).trim(),
+          description,
+          eventType,
+          dueDate: new Date(start.getTime() + i * dayMs),
+        })),
+      });
+      return NextResponse.json({ created: created.count }, { status: 201 });
+    }
 
     const event = await prisma.calendarEvent.create({
       data: {
         userId: session.user.id,
         semesterId,
-        title,
+        title: String(title).trim(),
         description,
         eventType,
-        dueDate: new Date(dueDate),
+        dueDate: start,
       },
     });
 

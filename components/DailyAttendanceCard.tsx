@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardCheck, Palmtree } from "lucide-react";
 import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayClassChip";
 import { computeHoursFromTimes, startOfDay, isSameDay } from "@/lib/attendanceUtils";
 
@@ -34,13 +34,16 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
  */
 export function DailyAttendanceCard({
   semesterId,
+  semesterStartDate,
   onChange,
 }: {
   semesterId: string;
+  semesterStartDate?: string;
   onChange?: () => void;
 }) {
   const router = useRouter();
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
+  const [holidays, setHolidays] = useState<Array<{ date: string; title: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
   // Records tagged with the specific timetable entry they came from, keyed
@@ -59,6 +62,15 @@ export function DailyAttendanceCard({
   const today = startOfDay(new Date());
   const isToday = isSameDay(selectedDate, today);
   const canGoForward = selectedDate < today;
+  // Classes before the semester began never happened - don't let the user
+  // walk back into (and mark attendance for) those days.
+  const semesterStart = semesterStartDate
+    ? (() => {
+        const [y, m, d] = semesterStartDate.slice(0, 10).split("-").map(Number);
+        return new Date(y, m - 1, d);
+      })()
+    : null;
+  const canGoBack = !semesterStart || selectedDate > semesterStart;
 
   useEffect(() => {
     if (!semesterId) return;
@@ -68,6 +80,22 @@ export function DailyAttendanceCard({
       .then((data) => setEntries(Array.isArray(data) ? data : []))
       .catch((error) => console.error("Error fetching timetable:", error))
       .finally(() => setIsLoading(false));
+  }, [semesterId]);
+
+  useEffect(() => {
+    if (!semesterId) return;
+    fetch(`/api/calendar?semesterId=${semesterId}`)
+      .then((res) => res.json())
+      .then((data: Array<{ title: string; eventType: string; dueDate: string }>) =>
+        setHolidays(
+          Array.isArray(data)
+            ? data
+                .filter((e) => e.eventType === "holiday")
+                .map((e) => ({ date: e.dueDate.slice(0, 10), title: e.title }))
+            : []
+        )
+      )
+      .catch(() => setHolidays([]));
   }, [semesterId]);
 
   useEffect(() => {
@@ -168,7 +196,14 @@ export function DailyAttendanceCard({
     router.push(`/dashboard/timetable?semesterId=${semesterId}`);
   };
 
-  const entriesForDay = entries.filter((entry) => entry.dayOfWeek === selectedDate.getDay());
+  const entriesForDay = entries
+    .filter((entry) => entry.dayOfWeek === selectedDate.getDay())
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  // Holidays are stored at the date string's UTC midnight, so compare on the
+  // local calendar date string rather than on instants.
+  const selectedKey = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
+  const holiday = holidays.find((h) => h.date === selectedKey);
 
   const dateLabel = selectedDate.toLocaleDateString(undefined, {
     weekday: "long",
@@ -194,8 +229,12 @@ export function DailyAttendanceCard({
         <div className="frosted-inset flex items-center gap-1 rounded-xl p-1">
           <button
             type="button"
-            onClick={() => setSelectedDate((d) => startOfDay(new Date(d.getTime() - 86400000)))}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+            onClick={() =>
+              canGoBack &&
+              setSelectedDate((d) => startOfDay(new Date(d.getTime() - 86400000)))
+            }
+            disabled={!canGoBack}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
             aria-label="Previous day"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -220,6 +259,14 @@ export function DailyAttendanceCard({
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
+      ) : holiday ? (
+        <div className="frosted-inset flex items-center gap-3 rounded-xl p-4 text-sm">
+          <Palmtree className="h-5 w-5 flex-shrink-0 text-success" />
+          <span className="text-foreground">
+            <span className="font-semibold">{holiday.title}</span> - no classes to mark
+            {isToday ? " today" : ""}.
+          </span>
+        </div>
       ) : entriesForDay.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No classes scheduled on {DAYS[selectedDate.getDay()]}.

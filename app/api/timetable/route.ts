@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
     const entries = await prisma.timetableEntry.findMany({
       where: { semesterId },
       include: { course: true },
+      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
     });
 
     return NextResponse.json(entries);

@@ -17,32 +17,53 @@ export interface AttendancePromptPayload {
   hoursDuration: number;
 }
 
+export interface TestPayload {
+  type: "test";
+  title: string;
+  body: string;
+}
+
+export type PushPayload = AttendancePromptPayload | TestPayload;
+
+export interface PushSendResult {
+  subscriptionId: string;
+  ok: boolean;
+  statusCode?: number;
+  /** Push service rejected it as expired/unknown - the row was deleted. */
+  removed?: boolean;
+  error?: string;
+}
+
 /**
  * Sends one push message to every subscription a user has (they may have
  * several browsers/devices). A subscription the push service reports as
- * gone (410) or unknown (404) is deleted so we stop paying for it and stop
- * retrying it on the next class.
+ * gone (410) or unknown (404) is deleted so we stop retrying it.
  */
-export async function sendPushToUser(userId: string, payload: AttendancePromptPayload): Promise<void> {
+export async function sendPushToUser(userId: string, payload: PushPayload): Promise<PushSendResult[]> {
   const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
 
-  await Promise.all(
-    subscriptions.map(async (sub) => {
+  return Promise.all(
+    subscriptions.map(async (sub): Promise<PushSendResult> => {
       try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-          },
+        const res = await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify(payload)
         );
+        return { subscriptionId: sub.id, ok: true, statusCode: res.statusCode };
       } catch (error) {
         const statusCode = (error as { statusCode?: number } | undefined)?.statusCode;
+        const body = (error as { body?: string } | undefined)?.body;
         if (statusCode === 404 || statusCode === 410) {
           await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
-        } else {
-          console.error(`Push send failed for subscription ${sub.id}:`, error);
+          return { subscriptionId: sub.id, ok: false, statusCode, removed: true };
         }
+        console.error(`Push send failed for subscription ${sub.id}:`, error);
+        return {
+          subscriptionId: sub.id,
+          ok: false,
+          statusCode,
+          error: body || (error instanceof Error ? error.message : "Unknown error"),
+        };
       }
     })
   );

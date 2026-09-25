@@ -37,16 +37,28 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+// iOS Safari revokes a push subscription after a few pushes that don't show
+// a notification, so every branch here must display one - never return early
+// silently, even on a payload this version doesn't recognise.
 self.addEventListener("push", (event) => {
-  if (!event.data) return;
-
-  let payload;
+  let payload = null;
   try {
-    payload = event.data.json();
+    payload = event.data ? event.data.json() : null;
   } catch {
+    payload = null;
+  }
+
+  if (!payload || payload.type !== "attendance-prompt") {
+    event.waitUntil(
+      self.registration.showNotification((payload && payload.title) || "Timetable Tracker", {
+        body: (payload && payload.body) || "Open the app to see what's new.",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag: payload && payload.type === "test" ? "reminder-test" : undefined,
+      })
+    );
     return;
   }
-  if (payload.type !== "attendance-prompt") return;
 
   event.waitUntil(
     self.registration.showNotification(payload.title, {

@@ -13,9 +13,10 @@ import { NoSemesterState } from "@/components/NoSemesterState";
 import { EventListItem } from "@/components/EventListItem";
 import { HolidayImportPanel } from "@/components/HolidayImportPanel";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { Plus, X, ChevronLeft, ChevronRight, Trash2, Upload } from "lucide-react";
+import { Plus, X, ChevronLeft, ChevronRight, Trash2, Upload, Palmtree, AlertCircle } from "lucide-react";
 import {
   format,
+  startOfToday,
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
@@ -57,12 +58,18 @@ const EVENT_COLORS: Record<string, string> = {
   default: "text-muted-foreground",
 };
 
-const EMPTY_EVENT = {
-  title: "",
-  description: "",
-  eventType: "exam",
-  dueDate: new Date().toISOString().split("T")[0],
-};
+// Built at call time in local time - a module-level constant froze "today"
+// at page load, and toISOString() gave the UTC date, which is yesterday for
+// the first 5.5 hours of every IST day.
+function emptyEvent(date: Date = new Date()) {
+  return {
+    title: "",
+    description: "",
+    eventType: "exam",
+    dueDate: format(date, "yyyy-MM-dd"),
+    endDate: "",
+  };
+}
 
 export default function CalendarPage() {
   return (
@@ -83,7 +90,8 @@ function CalendarContent() {
   const [showForm, setShowForm] = useState(false);
   const [showHolidayImport, setShowHolidayImport] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [newEvent, setNewEvent] = useState(EMPTY_EVENT);
+  const [newEvent, setNewEvent] = useState(() => emptyEvent());
+  const [eventError, setEventError] = useState("");
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -124,37 +132,57 @@ function CalendarContent() {
   };
 
   const resetForm = () => {
-    setNewEvent(EMPTY_EVENT);
+    setNewEvent(emptyEvent());
     setEditingEventId(null);
     setShowForm(false);
+    setEventError("");
+  };
+
+  const openHolidayForm = (date: Date = new Date()) => {
+    setShowHolidayImport(false);
+    setEditingEventId(null);
+    setEventError("");
+    setNewEvent({ ...emptyEvent(date), title: "Holiday", eventType: "holiday" });
+    setShowForm(true);
   };
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEventError("");
+    const { endDate, ...base } = newEvent;
+    const isRange = !editingEventId && base.eventType === "holiday" && endDate && endDate !== base.dueDate;
     try {
       const res = await fetch("/api/calendar", {
         method: editingEventId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          editingEventId ? { ...newEvent, id: editingEventId } : { ...newEvent, semesterId }
+          editingEventId
+            ? { ...base, id: editingEventId }
+            : { ...base, semesterId, ...(isRange ? { endDate } : {}) }
         ),
       });
 
       if (res.ok) {
         resetForm();
         fetchEvents();
+      } else {
+        const data = await res.json().catch(() => null);
+        setEventError(data?.error || "Couldn't save this event. Please try again.");
       }
     } catch (error) {
       console.error("Error saving event:", error);
+      setEventError("Couldn't save this event. Check your connection and try again.");
     }
   };
 
   const startEditEvent = (event: CalendarEvent) => {
+    setEventError("");
     setNewEvent({
       title: event.title,
       description: event.description || "",
       eventType: event.eventType,
       dueDate: format(new Date(event.dueDate), "yyyy-MM-dd"),
+      endDate: "",
     });
     setEditingEventId(event.id);
     setShowForm(true);
@@ -225,7 +253,7 @@ function CalendarContent() {
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-foreground">Calendar</h1>
           {semesterId && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {!showForm && (
                 <Button
                   variant="outline"
@@ -240,6 +268,11 @@ function CalendarContent() {
                       <Upload className="h-4 w-4" /> Import Holidays
                     </>
                   )}
+                </Button>
+              )}
+              {!showHolidayImport && !showForm && (
+                <Button variant="outline" onClick={() => openHolidayForm()}>
+                  <Palmtree className="h-4 w-4" /> Mark Holiday
                 </Button>
               )}
               {!showHolidayImport && (
@@ -331,19 +364,18 @@ function CalendarContent() {
                       new Set(dayAttendance.map((r) => r.status))
                     );
                     const isCurrentMonth = isSameMonth(day, currentDate);
+                    const isHoliday = dayEvents.some((e) => e.eventType === "holiday");
 
                     return (
                       <div
                         key={index}
                         className={`neu-pressable aspect-square cursor-pointer rounded-xl p-2 ${
                           isCurrentMonth ? "frosted-inset" : "opacity-40"
-                        }`}
+                        } ${isHoliday ? "bg-success/15 ring-1 ring-success/30" : ""}`}
                         onClick={() => {
                           setEditingEventId(null);
-                          setNewEvent({
-                            ...EMPTY_EVENT,
-                            dueDate: format(day, "yyyy-MM-dd"),
-                          });
+                          setEventError("");
+                          setNewEvent(emptyEvent(day));
                           setShowForm(true);
                         }}
                       >
@@ -424,8 +456,18 @@ function CalendarContent() {
               {showForm && (
                 <div className="frosted mb-6 rounded-2xl p-6">
                   <h3 className="mb-4 text-lg font-semibold text-foreground">
-                    {editingEventId ? "Edit Event" : "New Event"}
+                    {editingEventId
+                      ? "Edit Event"
+                      : newEvent.eventType === "holiday"
+                        ? "Mark Holiday"
+                        : "New Event"}
                   </h3>
+                  {eventError && (
+                    <div className="frosted-inset mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      {eventError}
+                    </div>
+                  )}
                   <form onSubmit={handleAddEvent} className="space-y-4">
                     <div>
                       <label className="mb-2 block text-sm font-medium text-foreground">
@@ -458,19 +500,41 @@ function CalendarContent() {
                       </SelectNative>
                     </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Date
-                      </label>
-                      <Input
-                        type="date"
-                        value={newEvent.dueDate}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, dueDate: e.target.value })
-                        }
-                        required
-                      />
+                    <div className={newEvent.eventType === "holiday" && !editingEventId ? "grid grid-cols-2 gap-3" : ""}>
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          {newEvent.eventType === "holiday" && !editingEventId ? "From" : "Date"}
+                        </label>
+                        <Input
+                          type="date"
+                          value={newEvent.dueDate}
+                          onChange={(e) =>
+                            setNewEvent({ ...newEvent, dueDate: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      {newEvent.eventType === "holiday" && !editingEventId && (
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-foreground">
+                            To (Optional)
+                          </label>
+                          <Input
+                            type="date"
+                            value={newEvent.endDate}
+                            min={newEvent.dueDate}
+                            onChange={(e) =>
+                              setNewEvent({ ...newEvent, endDate: e.target.value })
+                            }
+                          />
+                        </div>
+                      )}
                     </div>
+                    {newEvent.eventType === "holiday" && (
+                      <p className="-mt-2 text-xs text-muted-foreground">
+                        No class-end reminders are sent on holidays.
+                      </p>
+                    )}
 
                     <div>
                       <label className="mb-2 block text-sm font-medium text-foreground">
@@ -487,7 +551,11 @@ function CalendarContent() {
 
                     <div className="flex gap-3">
                       <Button type="submit" className="flex-1">
-                        {editingEventId ? "Save Changes" : "Add Event"}
+                        {editingEventId
+                          ? "Save Changes"
+                          : newEvent.eventType === "holiday"
+                            ? "Mark Holiday"
+                            : "Add Event"}
                       </Button>
                       {editingEventId && (
                         <Button
@@ -511,7 +579,7 @@ function CalendarContent() {
                 </h3>
                 <div className="max-h-96 space-y-2 overflow-y-auto">
                   {events
-                    .filter((e) => new Date(e.dueDate) >= new Date())
+                    .filter((e) => new Date(e.dueDate) >= startOfToday())
                     .sort(
                       (a, b) =>
                         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
@@ -533,7 +601,7 @@ function CalendarContent() {
                         }
                       />
                     ))}
-                  {events.filter((e) => new Date(e.dueDate) >= new Date()).length === 0 && (
+                  {events.filter((e) => new Date(e.dueDate) >= startOfToday()).length === 0 && (
                     <p className="py-4 text-center text-sm text-muted-foreground">
                       No upcoming events
                     </p>

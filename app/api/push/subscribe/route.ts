@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { scheduleRemainingClassesToday } from "@/lib/notificationScheduler";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,11 +16,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid subscription" }, { status: 400 });
     }
 
+    const hadSubscription =
+      (await prisma.pushSubscription.count({ where: { userId: session.user.id } })) > 0;
+
     await prisma.pushSubscription.upsert({
       where: { endpoint },
       update: { userId: session.user.id, p256dh: keys.p256dh, auth: keys.auth },
       create: { userId: session.user.id, endpoint, p256dh: keys.p256dh, auth: keys.auth },
     });
+
+    // The daily cron only runs at 5 AM IST, so without this someone who turns
+    // reminders on mid-morning gets nothing until tomorrow. Only on the first
+    // subscription: the app re-syncs an existing one on every load, and that
+    // mustn't re-publish (dedup IDs would absorb it, but it'd still cost a
+    // QStash call per class per page view).
+    if (!hadSubscription) {
+      await scheduleRemainingClassesToday([session.user.id]).catch((error) =>
+        console.error("Error scheduling today's reminders on subscribe:", error)
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

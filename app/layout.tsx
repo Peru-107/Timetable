@@ -58,9 +58,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <SessionProvider>{children}</SessionProvider>
+          <SessionProvider>
+            {children}
+            <ServiceWorkerRegister />
+          </SessionProvider>
         </ThemeProvider>
-        <ServiceWorkerRegister />
       </body>
     </html>
   );

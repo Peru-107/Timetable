@@ -18,7 +18,7 @@ import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseSchedul
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes, formatTime12h, startOfDay } from "@/lib/attendanceUtils";
 import { compressImageIfNeeded, MAX_UPLOAD_BYTES } from "@/lib/imageUpload";
-import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen } from "lucide-react";
+import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen, Palmtree } from "lucide-react";
 
 interface TimetableEntry {
   id: string;
@@ -95,6 +95,8 @@ function TimetableContent() {
   const [editCourseName, setEditCourseName] = useState("");
   const [editCourseCredits, setEditCourseCredits] = useState(3);
   const [editCourseSchedule, setEditCourseSchedule] = useState<ScheduleRow[]>([]);
+  const [newCourseTeacher, setNewCourseTeacher] = useState("");
+  const [editCourseTeacher, setEditCourseTeacher] = useState("");
   const [isSavingCourseEdit, setIsSavingCourseEdit] = useState(false);
   const [editCourseError, setEditCourseError] = useState("");
   const [isMergingAdjacent, setIsMergingAdjacent] = useState(false);
@@ -109,6 +111,7 @@ function TimetableContent() {
   // show independent status instead of colliding on courseId alone.
   const [todayByEntry, setTodayByEntry] = useState<Record<string, AttendanceRecord>>({});
   const [todayByCourseFallback, setTodayByCourseFallback] = useState<Record<string, AttendanceRecord>>({});
+  const [todayHoliday, setTodayHoliday] = useState<string | null>(null);
 
   const getTodayRecordForEntry = (entry: TimetableEntry) =>
     todayByEntry[entry.id] || todayByCourseFallback[entry.courseId];
@@ -120,6 +123,21 @@ function TimetableContent() {
       router.push("/login");
     }
   }, [status, router]);
+
+  useEffect(() => {
+    if (!semesterId) return;
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    fetch(`/api/calendar?semesterId=${semesterId}`)
+      .then((res) => res.json())
+      .then((data: Array<{ title: string; eventType: string; dueDate: string }>) => {
+        const match = Array.isArray(data)
+          ? data.find((e) => e.eventType === "holiday" && e.dueDate.slice(0, 10) === todayKey)
+          : undefined;
+        setTodayHoliday(match ? match.title : null);
+      })
+      .catch(() => setTodayHoliday(null));
+  }, [semesterId]);
 
   useEffect(() => {
     if (semesterId) {
@@ -276,6 +294,8 @@ function TimetableContent() {
               dayOfWeek: row.dayOfWeek,
               startTime: row.startTime,
               endTime: row.endTime,
+              room: row.room?.trim() || undefined,
+              instructor: newCourseTeacher.trim() || undefined,
             }),
           });
           if (!rowRes.ok) {
@@ -284,6 +304,7 @@ function TimetableContent() {
           }
         }
         setNewCourseName("");
+        setNewCourseTeacher("");
         setNewCourseCredits(3);
         setNewCourseSchedule([{ dayOfWeek: 1, startTime: "09:00", endTime: "10:00" }]);
         if (rowFailures.length === 0) setShowAddCourseForm(false);
@@ -328,6 +349,13 @@ function TimetableContent() {
         instructor: e.instructor,
       }));
     setEditCourseSchedule(existingRows);
+    // Prefill with the teacher most sessions already list.
+    const teacherCounts = new Map<string, number>();
+    for (const row of existingRows) {
+      if (row.instructor) teacherCounts.set(row.instructor, (teacherCounts.get(row.instructor) || 0) + 1);
+    }
+    const commonTeacher = [...teacherCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+    setEditCourseTeacher(commonTeacher);
   };
 
   const handleSaveCourseEdit = async (id: string) => {
@@ -363,8 +391,10 @@ function TimetableContent() {
               dayOfWeek: row.dayOfWeek,
               startTime: row.startTime,
               endTime: row.endTime,
-              room: row.room,
-              instructor: row.instructor,
+              room: row.room?.trim() || undefined,
+              // A subject has one teacher, so the course-level field applies to
+              // every session; blank keeps whatever each session already had.
+              instructor: editCourseTeacher.trim() || row.instructor,
             }),
           });
           if (!rowRes.ok) {
@@ -553,8 +583,11 @@ function TimetableContent() {
     }
   };
 
+  // "HH:MM" is zero-padded 24-hour, so string order is chronological order.
   const entriesByDay = DAYS.map((day, dayIndex) =>
-    timetableEntries.filter((entry) => entry.dayOfWeek === dayIndex)
+    timetableEntries
+      .filter((entry) => entry.dayOfWeek === dayIndex)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
   );
 
   // Two entries for the same course at the exact same day/time are almost
@@ -817,6 +850,17 @@ function TimetableContent() {
                     </div>
                   </div>
 
+                  <div className="max-w-sm">
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Teacher
+                    </label>
+                    <Input
+                      value={editCourseTeacher}
+                      onChange={(e) => setEditCourseTeacher(e.target.value)}
+                      placeholder="e.g., Prof. Rao"
+                    />
+                  </div>
+
                   <CourseScheduleRows rows={editCourseSchedule} onChange={setEditCourseSchedule} />
 
                   <div className="flex gap-3">
@@ -879,6 +923,17 @@ function TimetableContent() {
                         />
                       )}
                     </div>
+                  </div>
+
+                  <div className="max-w-sm">
+                    <label className="mb-2 block text-sm font-medium text-foreground">
+                      Teacher (Optional)
+                    </label>
+                    <Input
+                      value={newCourseTeacher}
+                      onChange={(e) => setNewCourseTeacher(e.target.value)}
+                      placeholder="e.g., Prof. Rao"
+                    />
                   </div>
 
                   <CourseScheduleRows rows={newCourseSchedule} onChange={setNewCourseSchedule} />
@@ -1107,7 +1162,14 @@ function TimetableContent() {
                       )}
                     </h3>
                     <div className="space-y-2">
-                      {dayEntries.length === 0 ? (
+                      {isToday && todayHoliday ? (
+                        <div className="frosted-inset flex items-center gap-2 rounded-xl p-3 text-sm">
+                          <Palmtree className="h-4 w-4 flex-shrink-0 text-success" />
+                          <span className="text-foreground">
+                            <span className="font-semibold">{todayHoliday}</span> - no classes today
+                          </span>
+                        </div>
+                      ) : dayEntries.length === 0 ? (
                         <p className="text-center text-sm text-muted-foreground">
                           No classes scheduled
                         </p>

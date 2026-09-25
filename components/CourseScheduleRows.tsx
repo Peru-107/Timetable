@@ -28,7 +28,7 @@ interface CourseScheduleRowsProps {
 export function CourseScheduleRows({ rows, onChange }: CourseScheduleRowsProps) {
   const updateRow = (
     index: number,
-    field: "dayOfWeek" | "startTime" | "endTime",
+    field: "dayOfWeek" | "startTime" | "endTime" | "room",
     value: string | number
   ) => {
     onChange(rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -62,13 +62,20 @@ export function CourseScheduleRows({ rows, onChange }: CourseScheduleRowsProps) 
       <label className="mb-2 block text-sm font-medium text-foreground">
         Weekly Schedule (Optional)
       </label>
-      <div className="space-y-2">
+      <div className="space-y-3 sm:space-y-2">
         {rows.map((row, index) => (
-          <div key={index} className="flex flex-wrap items-center gap-2">
+          // Two-column grid on phones (day + room, then start + end) so a
+          // row doesn't collapse into five stacked full-width fields; a
+          // single inline row from sm up.
+          <div
+            key={index}
+            className="relative grid grid-cols-2 gap-2 pr-8 sm:flex sm:flex-wrap sm:items-center"
+          >
             <SelectNative
               value={row.dayOfWeek}
               onChange={(e) => updateRow(index, "dayOfWeek", parseInt(e.target.value))}
-              className="w-36"
+              className="w-full sm:w-36"
+              aria-label="Day"
             >
               {DAYS.map((day, dayIdx) => (
                 <option key={dayIdx} value={dayIdx}>
@@ -77,22 +84,31 @@ export function CourseScheduleRows({ rows, onChange }: CourseScheduleRowsProps) 
               ))}
             </SelectNative>
             <Input
+              value={row.room || ""}
+              onChange={(e) => updateRow(index, "room", e.target.value)}
+              placeholder="Classroom"
+              aria-label="Classroom"
+              className="w-full sm:order-last sm:w-32"
+            />
+            <Input
               type="time"
               value={row.startTime}
               onChange={(e) => updateRow(index, "startTime", e.target.value)}
-              className="w-32"
+              aria-label="Start time"
+              className="w-full sm:w-32"
             />
-            <span className="text-sm text-muted-foreground">to</span>
+            <span className="hidden text-sm text-muted-foreground sm:inline">to</span>
             <Input
               type="time"
               value={row.endTime}
               onChange={(e) => updateRow(index, "endTime", e.target.value)}
-              className="w-32"
+              aria-label="End time"
+              className="w-full sm:w-32"
             />
             <button
               type="button"
               onClick={() => removeRow(index)}
-              className="text-muted-foreground hover:text-destructive"
+              className="absolute right-0 top-3 text-muted-foreground hover:text-destructive sm:top-1/2 sm:-translate-y-1/2"
               aria-label="Remove this day"
             >
               <X className="h-4 w-4" />

@@ -21,7 +21,9 @@ interface DeliverBody {
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
 
-  if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
+  // Fail closed outside local dev, so a missing signing key can't let anyone
+  // push arbitrary notifications to a user.
+  if (process.env.QSTASH_CURRENT_SIGNING_KEY || process.env.NODE_ENV === "production") {
     const signature = req.headers.get("upstash-signature");
     if (!signature) {
       return NextResponse.json({ error: "Missing signature" }, { status: 401 });

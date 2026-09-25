@@ -324,6 +324,7 @@ export default function DashboardPage() {
           <>
             <DailyAttendanceCard
               semesterId={activeSemester.id}
+              semesterStartDate={activeSemester.startDate}
               onChange={() => fetchAttendanceStats(activeSemester.id)}
             />
 
