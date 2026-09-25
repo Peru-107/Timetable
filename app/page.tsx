@@ -27,7 +27,7 @@ const FEATURES = [
     icon: ClipboardCheck,
     title: "Attendance Tracking",
     description:
-      "Track hourly attendance. Monitor your 80% requirement and see leaves available.",
+      "Track hourly attendance. Monitor your minimum-attendance requirement and see leaves available.",
   },
   {
     icon: GraduationCap,

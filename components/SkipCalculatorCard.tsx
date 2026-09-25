@@ -12,6 +12,7 @@ export interface CourseSkipStat {
   classesAvailableToMiss: number;
   classesToRecover: number;
   canReachTarget: boolean;
+  minAttendance: number;
   riskLevel: "safe" | "warning" | "critical";
 }
 
@@ -23,10 +24,11 @@ export const TONE = {
 } as const;
 
 export function verdict(c: CourseSkipStat): { text: string; tone: keyof typeof TONE } {
-  if (!c.canReachTarget) return { text: "Can't reach 80% this semester", tone: "critical" };
+  if (!c.canReachTarget)
+    return { text: `Can't reach ${c.minAttendance}% this semester`, tone: "critical" };
   if (c.classesToRecover > 0)
     return {
-      text: `Attend next ${c.classesToRecover} to reach 80%`,
+      text: `Attend next ${c.classesToRecover} to reach ${c.minAttendance}%`,
       tone: "critical",
     };
   if (c.classesAvailableToMiss === 0) return { text: "Can't skip any more", tone: "warning" };
@@ -39,8 +41,9 @@ export function verdict(c: CourseSkipStat): { text: string; tone: keyof typeof T
 const RADIUS = 18;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-/** Percentage ring with a tick at the 80% line. */
-function Ring({ pct, color, empty }: { pct: number; color: string; empty: boolean }) {
+/** Percentage ring with a tick at the minimum-attendance line. */
+function Ring({ pct, color, empty, min }: { pct: number; color: string; empty: boolean; min: number }) {
+  const a = (min / 100) * 2 * Math.PI;
   return (
     <svg viewBox="0 0 44 44" className="h-12 w-12 flex-shrink-0 -rotate-90" aria-hidden="true">
       <circle cx="22" cy="22" r={RADIUS} fill="none" stroke="currentColor" strokeWidth="4" className="text-foreground/10" />
@@ -59,12 +62,12 @@ function Ring({ pct, color, empty }: { pct: number; color: string; empty: boolea
           transition={{ type: "spring", stiffness: 60, damping: 18 }}
         />
       )}
-      {/* 80% marker */}
+      {/* minimum-attendance marker */}
       <line
-        x1={22 + (RADIUS - 4) * Math.cos(0.8 * 2 * Math.PI)}
-        y1={22 + (RADIUS - 4) * Math.sin(0.8 * 2 * Math.PI)}
-        x2={22 + (RADIUS + 4) * Math.cos(0.8 * 2 * Math.PI)}
-        y2={22 + (RADIUS + 4) * Math.sin(0.8 * 2 * Math.PI)}
+        x1={22 + (RADIUS - 4) * Math.cos(a)}
+        y1={22 + (RADIUS - 4) * Math.sin(a)}
+        x2={22 + (RADIUS + 4) * Math.cos(a)}
+        y2={22 + (RADIUS + 4) * Math.sin(a)}
         stroke="currentColor"
         strokeWidth="1.5"
         className="text-foreground/40"
@@ -74,8 +77,8 @@ function Ring({ pct, color, empty }: { pct: number; color: string; empty: boolea
 }
 
 /**
- * "Can I skip this class?" answered per subject against the 80% rule:
- * how many more classes you can miss and still finish the semester at 80%,
+ * "Can I skip this class?" answered per subject against the semester's
+ * minimum: how many more classes you can miss and still finish above it,
  * or how many you must attend in a row to get back to it.
  */
 // Shown before "Show all" - the subjects most at risk come first.
@@ -101,7 +104,7 @@ export function SkipCalculatorCard({ courses }: { courses: CourseSkipStat[] }) {
         <div>
           <h3 className="text-lg font-semibold text-foreground">Can I skip?</h3>
           <p className="text-sm text-muted-foreground">
-            Per subject, against the 80% attendance rule.
+            Per subject, against the {sorted[0]?.minAttendance ?? 80}% attendance rule.
           </p>
         </div>
       </div>
@@ -124,7 +127,7 @@ export function SkipCalculatorCard({ courses }: { courses: CourseSkipStat[] }) {
               className="frosted-inset flex items-center gap-3 rounded-xl p-3"
             >
               <div className="relative">
-                <Ring pct={c.attendancePercentage} color={TONE[v.tone]} empty={empty} />
+                <Ring pct={c.attendancePercentage} color={TONE[v.tone]} empty={empty} min={c.minAttendance} />
                 <span className="absolute inset-0 flex items-center justify-center font-mono text-[10px] font-semibold text-foreground">
                   {empty ? "--" : `${Math.round(c.attendancePercentage)}%`}
                 </span>

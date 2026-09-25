@@ -27,6 +27,7 @@ model User {
   chatMessages        ChatMessage[]
   pushSubscriptions   PushSubscription[]
   passwordResetTokens PasswordResetToken[]
+  shareLinks          ShareLink[]
 
   @@map("users")
 }
@@ -63,6 +64,8 @@ model Semester {
   startDate DateTime
   endDate   DateTime
   weeks     Int      @default(15) // Teaching weeks, used for attendance-hours math (not derived from dates)
+  // Minimum attendance the university requires, in percent (80 = 80%).
+  minAttendance Int  @default(80)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -73,6 +76,7 @@ model Semester {
   grades           Grade[]
   calendarEvents   CalendarEvent[]
   chatMessages     ChatMessage[]
+  shareLinks       ShareLink[]
 
   @@map("semesters")
 }
@@ -108,6 +112,9 @@ model TimetableEntry {
   endTime    String // HH:MM format
   room       String?
   instructor String?
+  // Set for a one-time extra / make-up class held only on this date
+  // (UTC midnight of the local calendar date); null for a weekly slot.
+  onDate     DateTime?
 
   attendanceRecords AttendanceRecord[]
 
@@ -253,4 +260,18 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   @@map("chat_messages")
+}
+
+// A read-only link a student can send classmates so they can copy the
+// same courses and weekly timetable into their own account.
+model ShareLink {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  semester   Semester @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semesterId String
+  createdAt  DateTime @default(now())
+
+  @@map("share_links")
 }

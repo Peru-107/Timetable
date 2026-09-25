@@ -13,7 +13,6 @@ const SUBJECT_HUES = [
   "#6a66dc", "#a45cd3", "#d45aa3", "#2fa874", "#e05865",
 ];
 
-const MIN = 80;
 
 function Arc({ cx, r, w, pct, color }: { cx: number; r: number; w: number; pct: number; color: string }) {
   const c = 2 * Math.PI * r;
@@ -65,7 +64,7 @@ export function AttendanceChartCard({
   overall,
 }: {
   courses: CourseSkipStat[];
-  overall: { percentage: number; heldHours: number };
+  overall: { percentage: number; heldHours: number; min: number };
 }) {
   const { chartStyle, setChartStyle } = useTheme();
   const [selected, setSelected] = useState<string | null>(null);
@@ -90,7 +89,7 @@ export function AttendanceChartCard({
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Attendance by subject
           </h3>
-          <p className="text-xs text-muted-foreground">80% needed · tap a subject</p>
+          <p className="text-xs text-muted-foreground">{overall.min}% needed · tap a subject</p>
         </div>
         <StyleSwitch value={chartStyle} onChange={setChartStyle} />
       </div>
@@ -174,7 +173,7 @@ function RingsView({
   onSelect,
 }: {
   subjects: Subject[];
-  overall: { percentage: number; heldHours: number };
+  overall: { percentage: number; heldHours: number; min: number };
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -222,7 +221,9 @@ function RingsView({
             <span className="truncate font-semibold text-foreground">{s.courseName}</span>
             <span
               className="ml-auto flex-shrink-0 font-mono text-xs"
-              style={{ color: s.attendancePercentage < MIN ? "var(--destructive)" : "var(--muted-foreground)" }}
+              style={{
+                color: s.attendancePercentage < overall.min ? "var(--destructive)" : "var(--muted-foreground)",
+              }}
             >
               {Math.round(s.attendancePercentage)}%
             </span>
@@ -241,7 +242,7 @@ function SunflowerView({
   onSelect,
 }: {
   subjects: Subject[];
-  overall: { percentage: number; heldHours: number };
+  overall: { percentage: number; heldHours: number; min: number };
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -249,7 +250,7 @@ function SunflowerView({
   const cx = size / 2;
   const r0 = 28;
   const rMax = cx - 38;
-  const r80 = r0 + (rMax - r0) * (MIN / 100);
+  const r80 = r0 + (rMax - r0) * (overall.min / 100);
   const petalWidth = Math.max(8, Math.min(18, 150 / subjects.length));
 
   return (

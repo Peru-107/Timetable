@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, startDate, endDate, weeks } = await req.json();
+    const { name, startDate, endDate, weeks, minAttendance } = await req.json();
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "Semester name is required" }, { status: 400 });
@@ -56,6 +56,8 @@ export async function POST(req: NextRequest) {
         startDate: parsedStart,
         endDate: parsedEnd,
         weeks: weeks != null ? Math.max(1, Math.round(weeks)) : undefined,
+        minAttendance:
+          minAttendance != null ? Math.min(100, Math.max(1, Math.round(minAttendance))) : undefined,
         userId: session.user.id,
       },
     });
@@ -77,7 +79,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, name, startDate, endDate, weeks } = await req.json();
+    const { id, name, startDate, endDate, weeks, minAttendance } = await req.json();
     if (!id) {
       return NextResponse.json({ error: "Semester ID required" }, { status: 400 });
     }
@@ -109,6 +111,8 @@ export async function PATCH(req: NextRequest) {
         startDate: startDate ? parsedStart : undefined,
         endDate: endDate ? parsedEnd : undefined,
         weeks: weeks != null ? Math.max(1, Math.round(weeks)) : undefined,
+        minAttendance:
+          minAttendance != null ? Math.min(100, Math.max(1, Math.round(minAttendance))) : undefined,
       },
     });
 

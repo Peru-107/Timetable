@@ -17,7 +17,7 @@ import Link from "next/link";
 import {
   ClipboardCheck,
   GraduationCap,
-  BookMarked,
+  CalendarClock,
   BookOpen,
   Flame,
   ArrowRight,
@@ -34,6 +34,7 @@ interface Semester {
   startDate: string;
   endDate: string;
   weeks: number;
+  minAttendance: number;
   courses: Array<any>;
 }
 
@@ -42,6 +43,7 @@ interface AttendanceStats {
   attendedHours: number;
   heldHours: number;
   attendancePercentage: number;
+  minAttendance: number;
   requiredHours: number;
   leavesAvailable: number;
   leavesUsed: number;
@@ -70,6 +72,7 @@ export default function DashboardPage() {
   const [activeSemester, setActiveSemester] = useState<Semester | null>(null);
   const [attendanceStats, setAttendanceStats] = useState<AttendanceStats | null>(null);
   const [courseStats, setCourseStats] = useState<CourseSkipStat[]>([]);
+  const [nextExam, setNextExam] = useState<{ title: string; date: string } | null>(null);
   const [cgpaData, setCGPAData] = useState<CGPAData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showEditSemester, setShowEditSemester] = useState(false);
@@ -78,6 +81,7 @@ export default function DashboardPage() {
     startDate: "",
     endDate: "",
     weeks: 15,
+    minAttendance: 80,
   });
   const [isSavingSemester, setIsSavingSemester] = useState(false);
   const [isDeletingSemester, setIsDeletingSemester] = useState(false);
@@ -104,6 +108,7 @@ export default function DashboardPage() {
         setActiveSemester(data[0]);
         fetchAttendanceStats(data[0].id);
         fetchCGPA(data[0].id);
+        fetchNextExam(data[0].id);
       } else {
         setActiveSemester(null);
         setAttendanceStats(null);
@@ -128,6 +133,26 @@ export default function DashboardPage() {
     }
   };
 
+  // Soonest exam from today on. Calendar dates are stored as UTC midnight
+  // of the picked day, so compare on the "YYYY-MM-DD" part.
+  const fetchNextExam = async (semesterId: string) => {
+    try {
+      const res = await fetch(`/api/calendar?semesterId=${semesterId}`);
+      const events: Array<{ title: string; eventType: string; dueDate: string; completed?: boolean }> =
+        await res.json();
+      const now = new Date();
+      const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+        now.getDate()
+      ).padStart(2, "0")}`;
+      const exam = (Array.isArray(events) ? events : [])
+        .filter((e) => e.eventType === "exam" && !e.completed && e.dueDate.slice(0, 10) >= todayKey)
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+      setNextExam(exam ? { title: exam.title, date: exam.dueDate.slice(0, 10) } : null);
+    } catch {
+      setNextExam(null);
+    }
+  };
+
   const fetchCGPA = async (semesterId: string) => {
     try {
       const res = await fetch(`/api/grades?semesterId=${semesterId}`);
@@ -143,6 +168,7 @@ export default function DashboardPage() {
     setShowEditSemester(false);
     fetchAttendanceStats(semester.id);
     fetchCGPA(semester.id);
+    fetchNextExam(semester.id);
   };
 
   const startEditSemester = () => {
@@ -152,6 +178,7 @@ export default function DashboardPage() {
       startDate: activeSemester.startDate.split("T")[0],
       endDate: activeSemester.endDate.split("T")[0],
       weeks: activeSemester.weeks,
+      minAttendance: activeSemester.minAttendance ?? 80,
     });
     setShowEditSemester(true);
   };
@@ -315,6 +342,23 @@ export default function DashboardPage() {
                   required
                 />
               </div>
+              <div className="w-32">
+                <label className="mb-2 block text-sm font-medium text-foreground">Min. %</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value={editSemesterForm.minAttendance}
+                  onChange={(e) =>
+                    setEditSemesterForm({
+                      ...editSemesterForm,
+                      minAttendance: parseInt(e.target.value) || 80,
+                    })
+                  }
+                  required
+                />
+              </div>
               <div className="flex w-full flex-wrap items-center justify-between gap-3">
                 <Button type="submit" disabled={isSavingSemester}>
                   {isSavingSemester ? "Saving..." : "Save"}
@@ -361,7 +405,7 @@ export default function DashboardPage() {
                     className={`font-display text-3xl font-bold tracking-tight ${
                       attendanceStats.heldHours === 0
                         ? "text-muted-foreground"
-                        : attendanceStats.attendancePercentage >= 80
+                        : attendanceStats.attendancePercentage >= attendanceStats.minAttendance
                           ? "text-success"
                           : "text-destructive"
                     }`}
@@ -373,7 +417,8 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {attendanceStats.attendedHours} of {attendanceStats.heldHours}h so far · 80%
+                    {attendanceStats.attendedHours} of {attendanceStats.heldHours}h so far ·{" "}
+                    {attendanceStats.minAttendance}%
                     needed
                   </p>
                 </motion.div>
@@ -414,20 +459,46 @@ export default function DashboardPage() {
                 </motion.div>
               )}
 
-              <motion.div variants={statCardVariants} className="frosted rounded-3xl p-4" data-spotlight>
-                <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-                  <BookMarked className="h-4 w-4 text-primary" />
-                  <h3 className="text-xs font-semibold uppercase tracking-wider">Courses</h3>
-                </div>
-                <div className="font-display text-3xl font-bold tracking-tight text-foreground">
-                  <AnimatedNumber value={activeSemester.courses.length} />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {attendanceStats
-                    ? `can still miss ${attendanceStats.leavesAvailable}h this sem`
-                    : "this semester"}
-                </p>
-              </motion.div>
+              <Link
+                href={`/dashboard/calendar?semesterId=${activeSemester.id}`}
+                className="contents"
+              >
+                <motion.div variants={statCardVariants} className="frosted rounded-3xl p-4" data-spotlight>
+                  <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+                    <CalendarClock className="h-4 w-4 text-primary" />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider">Next exam</h3>
+                  </div>
+                  {nextExam ? (
+                    (() => {
+                      const [y, m, d] = nextExam.date.split("-").map(Number);
+                      const days = Math.round(
+                        (new Date(y, m - 1, d).getTime() - new Date(new Date().toDateString()).getTime()) /
+                          86400000
+                      );
+                      return (
+                        <>
+                          <div
+                            className={`font-display text-3xl font-bold tracking-tight ${
+                              days <= 3 ? "text-destructive" : "text-foreground"
+                            }`}
+                          >
+                            {days === 0 ? "Today" : days === 1 ? "Tomorrow" : days}
+                            {days > 1 && (
+                              <span className="ml-1 text-sm font-semibold text-muted-foreground">days</span>
+                            )}
+                          </div>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{nextExam.title}</p>
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <>
+                      <div className="font-display text-3xl font-bold tracking-tight text-muted-foreground">--</div>
+                      <p className="mt-1 text-xs text-muted-foreground">No exams in Calendar</p>
+                    </>
+                  )}
+                </motion.div>
+              </Link>
             </motion.div>
 
             {attendanceStats && (
@@ -436,6 +507,7 @@ export default function DashboardPage() {
                 overall={{
                   percentage: attendanceStats.attendancePercentage,
                   heldHours: attendanceStats.heldHours,
+                  min: attendanceStats.minAttendance,
                 }}
               />
             )}

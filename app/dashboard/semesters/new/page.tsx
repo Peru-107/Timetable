@@ -16,6 +16,7 @@ export default function NewSemesterPage() {
     startDate: "",
     endDate: "",
     weeks: 15,
+    minAttendance: 80,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -137,6 +138,26 @@ export default function NewSemesterPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 The number of teaching weeks, not calendar weeks - this drives your
                 attendance hour totals, so exclude breaks/holidays.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-foreground">
+                Minimum Attendance (%)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                max="100"
+                step="1"
+                value={formData.minAttendance}
+                onChange={(e) =>
+                  setFormData({ ...formData, minAttendance: parseInt(e.target.value) || 80 })
+                }
+                required
+              />
+              <p className="mt-1 text-sm text-muted-foreground">
+                What your university requires - usually 75% or 80%.
               </p>
             </div>
 

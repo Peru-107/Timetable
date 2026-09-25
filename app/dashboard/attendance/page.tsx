@@ -29,18 +29,6 @@ import {
   Download,
 } from "lucide-react";
 import { toCsv, downloadCsv } from "@/lib/csv";
-import { SHOW_CHARTS } from "@/lib/featureFlags";
-import {
-  BarChart,
-  Bar,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ResponsiveContainer,
-} from "recharts";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "CANCELLED";
 
@@ -61,6 +49,7 @@ interface AttendanceStats {
   attendedHours: number;
   heldHours: number;
   attendancePercentage: number;
+  minAttendance: number;
   requiredHours: number;
   leavesAvailable: number;
   leavesUsed: number;
@@ -78,6 +67,7 @@ interface CourseAttendanceStat {
   attendancePercentage: number;
   classesAvailableToMiss: number;
   classesToRecover: number;
+  minAttendance: number;
   canReachTarget: boolean;
   heldHours: number;
   riskLevel: AttendanceRiskLevel;
@@ -89,23 +79,18 @@ const RISK_STYLE: Record<AttendanceRiskLevel, string> = {
   critical: "text-destructive",
 };
 
-const RISK_FILL: Record<AttendanceRiskLevel, string> = {
-  safe: "var(--success)",
-  warning: "var(--warning)",
-  critical: "var(--destructive)",
-};
 
 function riskMessage(c: CourseAttendanceStat): string {
   if (!c.canReachTarget) {
-    return "Too many absences to finish the semester at 80%";
+    return `Too many absences to finish the semester at ${c.minAttendance}%`;
   }
   if (c.classesToRecover > 0) {
-    return `Below 80% - attend the next ${c.classesToRecover} ${
+    return `Below ${c.minAttendance}% - attend the next ${c.classesToRecover} ${
       c.classesToRecover === 1 ? "class" : "classes"
     } to recover`;
   }
   if (c.classesAvailableToMiss === 0) {
-    return "Can't miss another class and stay at 80%";
+    return `Can't miss another class and stay at ${c.minAttendance}%`;
   }
   if (c.classesAvailableToMiss === 1) {
     return "1 class of slack left";
@@ -308,11 +293,6 @@ function AttendanceContent() {
     return <PageLoader />;
   }
 
-  const chartData = statsByCourse.map((c) => ({
-    name: c.courseName,
-    percentage: c.attendancePercentage,
-    risk: c.riskLevel,
-  }));
 
   return (
     <div className="min-h-screen bg-background pb-12">
@@ -362,7 +342,7 @@ function AttendanceContent() {
                   {stats.heldHours > 0 ? (
                     <p
                       className={`font-mono text-3xl font-bold ${
-                        stats.attendancePercentage >= 80 ? "text-success" : "text-destructive"
+                        stats.attendancePercentage >= stats.minAttendance ? "text-success" : "text-destructive"
                       }`}
                     >
                       <AnimatedNumber value={stats.attendancePercentage} suffix="%" />
@@ -380,7 +360,8 @@ function AttendanceContent() {
                     {stats.attendedHours}/{stats.heldHours}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    held so far · 80% of that = {Math.round(stats.heldHours * 0.8 * 100) / 100}h
+                    held so far · {stats.minAttendance}% of that ={" "}
+                    {Math.round(stats.heldHours * stats.minAttendance) / 100}h
                     needed now
                   </p>
                 </motion.div>
@@ -393,8 +374,8 @@ function AttendanceContent() {
                     <AnimatedNumber value={stats.leavesAvailable} suffix="h" />
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    of {Math.round(stats.totalHours * 0.2 * 100) / 100}h allowed ({stats.totalHours}h
-                    semester × 20%)
+                    of {Math.round(stats.totalHours * (100 - stats.minAttendance)) / 100}h allowed (
+                    {stats.totalHours}h semester × {100 - stats.minAttendance}%)
                   </p>
                 </motion.div>
 
@@ -404,12 +385,12 @@ function AttendanceContent() {
                   </h3>
                   <p
                     className={`flex items-center gap-2 text-xl font-bold ${
-                      stats.heldHours === 0 || stats.attendancePercentage >= 80
+                      stats.heldHours === 0 || stats.attendancePercentage >= stats.minAttendance
                         ? "text-success"
                         : "text-destructive"
                     }`}
                   >
-                    {stats.heldHours === 0 || stats.attendancePercentage >= 80 ? (
+                    {stats.heldHours === 0 || stats.attendancePercentage >= stats.minAttendance ? (
                       <>
                         <CheckCircle2 className="h-5 w-5" /> Safe
                       </>
@@ -432,14 +413,14 @@ function AttendanceContent() {
                 <p className="mb-4 text-sm text-muted-foreground">
                   Percentages count classes held so far. Each subject has its own
                   semester-long hour total (weekly schedule × weeks in the semester) and its
-                  own 80% requirement.
+                  own {stats?.minAttendance ?? 80}% requirement.
                 </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {statsByCourse.map((c) => (
                     <div key={c.courseId} className="frosted-inset rounded-xl p-4">
                       <p className="truncate font-medium text-foreground">{c.courseName}</p>
                       {/* Two different yardsticks, shown side by side:
-                          "so far" grows with every lecture held (80% of what's
+                          "so far" grows with every lecture held (the minimum % of what's
                           been conducted), while the miss budget is fixed by the
                           whole semester's total (20% of it). */}
                       <div className="mt-2 flex items-baseline gap-2">
@@ -453,8 +434,8 @@ function AttendanceContent() {
                         <dd className="text-foreground">
                           {c.heldHours > 0 ? (
                             <>
-                              attended {c.attendedHours}h of {c.heldHours}h held · 80% ={" "}
-                              {Math.round(c.heldHours * 0.8 * 100) / 100}h
+                              attended {c.attendedHours}h of {c.heldHours}h held ·{" "}
+                              {c.minAttendance}% = {Math.round(c.heldHours * c.minAttendance) / 100}h
                             </>
                           ) : (
                             "no classes marked yet"
@@ -462,7 +443,8 @@ function AttendanceContent() {
                         </dd>
                         <dt className="text-muted-foreground">Semester</dt>
                         <dd className="text-foreground">
-                          {c.totalHours}h total · can miss {Math.round(c.totalHours * 0.2 * 100) / 100}h ·
+                          {c.totalHours}h total · can miss{" "}
+                          {Math.round(c.totalHours * (100 - c.minAttendance)) / 100}h ·
                           missed {c.leavesUsed}h ·{" "}
                           <span className="font-semibold">{c.hoursAvailableToMiss}h left</span>
                         </dd>
@@ -574,45 +556,6 @@ function AttendanceContent() {
                     Save Attendance
                   </Button>
                 </form>
-              </div>
-            )}
-
-            {/* Chart */}
-            {SHOW_CHARTS && chartData.length > 0 && (
-              <div className="frosted mb-8 rounded-2xl p-6">
-                <h2 className="mb-1 text-xl font-semibold text-foreground">
-                  Attendance by Subject
-                </h2>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Each bar is a subject's own attendance % - color shows how close it is to the
-                  80% line.
-                </p>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="name" stroke="var(--muted-foreground)" />
-                    <YAxis domain={[0, 100]} stroke="var(--muted-foreground)" />
-                    <Tooltip
-                      formatter={(value: number) => [`${value}%`, "Attendance"]}
-                      contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "0.75rem",
-                      }}
-                    />
-                    <ReferenceLine
-                      y={80}
-                      stroke="var(--muted-foreground)"
-                      strokeDasharray="4 4"
-                      label={{ value: "80% required", position: "insideTopRight", fill: "var(--muted-foreground)", fontSize: 12 }}
-                    />
-                    <Bar dataKey="percentage" radius={[6, 6, 0, 0]}>
-                      {chartData.map((entry) => (
-                        <Cell key={entry.name} fill={RISK_FILL[entry.risk]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
               </div>
             )}
 
