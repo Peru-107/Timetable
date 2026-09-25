@@ -31,6 +31,8 @@ interface TimetableEntry {
   endTime: string;
   room?: string;
   instructor?: string;
+  /** Set for a one-time extra class; null for weekly slots. */
+  onDate?: string | null;
   course: { id: string; name: string };
 }
 
@@ -346,14 +348,21 @@ export function DailyAttendanceCard({
     router.push(`/dashboard/timetable?semesterId=${semesterId}`);
   };
 
-  const entriesForDay = entries
-    .filter((entry) => entry.dayOfWeek === selectedDate.getDay())
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-  // Holidays are stored at the date string's UTC midnight, so compare on the
-  // local calendar date string rather than on instants.
+  // Holidays and extra classes are stored at the date string's UTC midnight,
+  // so compare on the local calendar date string rather than on instants.
   const selectedKey = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
   const holiday = holidays.find((h) => h.date === selectedKey);
+
+  // Weekly classes on this weekday (none on a holiday), plus any one-time
+  // extra class dated today - an extra class counts even on a holiday,
+  // since the student added it on purpose.
+  const entriesForDay = entries
+    .filter((entry) =>
+      entry.onDate
+        ? entry.onDate.slice(0, 10) === selectedKey
+        : !holiday && entry.dayOfWeek === selectedDate.getDay()
+    )
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const dateLabel = selectedDate.toLocaleDateString(undefined, {
     weekday: "long",
@@ -415,7 +424,7 @@ export function DailyAttendanceCard({
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
-      ) : holiday ? (
+      ) : holiday && entriesForDay.length === 0 ? (
         <div className="frosted-inset flex items-center gap-3 rounded-xl p-4 text-sm">
           <Palmtree className="h-5 w-5 flex-shrink-0 text-success" />
           <span className="text-foreground">

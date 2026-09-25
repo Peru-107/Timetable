@@ -9,7 +9,8 @@ import { planAdjacentMerge } from "./timetableMerge";
  * the records themselves, so merging never touches attendance history.
  */
 export async function mergeAdjacentEntriesForCourse(courseId: string): Promise<number> {
-  const entries = await prisma.timetableEntry.findMany({ where: { courseId } });
+  // One-time extra classes are never merged with the weekly schedule.
+  const entries = await prisma.timetableEntry.findMany({ where: { courseId, onDate: null } });
   const plan = planAdjacentMerge(entries);
 
   for (const update of plan.updates) {

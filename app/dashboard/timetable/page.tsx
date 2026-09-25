@@ -17,9 +17,9 @@ import { CoursePill } from "@/components/CoursePill";
 import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseScheduleRows";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { computeHoursFromTimes, formatTime12h, startOfDay } from "@/lib/attendanceUtils";
+import { computeHoursFromTimes, formatTime12h, localDateKey, startOfDay } from "@/lib/attendanceUtils";
 import { compressImageIfNeeded, MAX_UPLOAD_BYTES } from "@/lib/imageUpload";
-import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen, Palmtree } from "lucide-react";
+import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen, Palmtree, CalendarPlus } from "lucide-react";
 
 interface TimetableEntry {
   id: string;
@@ -29,6 +29,8 @@ interface TimetableEntry {
   endTime: string;
   room?: string;
   instructor?: string;
+  /** Set for a one-time extra class ("YYYY-MM-DD..."); null for weekly slots. */
+  onDate?: string | null;
   course: {
     id: string;
     name: string;
@@ -83,12 +85,15 @@ function TimetableContent() {
   const [newEntry, setNewEntry] = useState({
     courseId: "",
     dayOfWeek: 0,
+    onDate: localDateKey(new Date()),
     startTime: "09:00",
     endTime: "11:00",
     room: "",
     instructor: "",
   });
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  // Whether the form is for a one-time extra class (date) or a weekly slot (day).
+  const [entryIsExtra, setEntryIsExtra] = useState(true);
   const [entryError, setEntryError] = useState("");
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -225,6 +230,7 @@ function TimetableContent() {
     setNewEntry({
       courseId: "",
       dayOfWeek: 0,
+      onDate: localDateKey(new Date()),
       startTime: "09:00",
       endTime: "11:00",
       room: "",
@@ -242,9 +248,11 @@ function TimetableContent() {
       const res = await fetch("/api/timetable", {
         method: editingEntryId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          editingEntryId ? { ...newEntry, id: editingEntryId } : { ...newEntry, semesterId }
-        ),
+        body: JSON.stringify({
+          ...newEntry,
+          ...(editingEntryId ? { id: editingEntryId } : { semesterId }),
+          onDate: entryIsExtra ? newEntry.onDate : undefined,
+        }),
       });
 
       if (res.ok) {
@@ -264,11 +272,13 @@ function TimetableContent() {
     setNewEntry({
       courseId: entry.courseId,
       dayOfWeek: entry.dayOfWeek,
+      onDate: entry.onDate ? entry.onDate.slice(0, 10) : localDateKey(new Date()),
       startTime: entry.startTime,
       endTime: entry.endTime,
       room: entry.room || "",
       instructor: entry.instructor || "",
     });
+    setEntryIsExtra(!!entry.onDate);
     setEditingEntryId(entry.id);
     setShowForm(true);
   };
@@ -363,7 +373,7 @@ function TimetableContent() {
     setEditCourseName(course.name);
     setEditCourseCredits(course.creditHours);
     const existingRows = timetableEntries
-      .filter((e) => e.courseId === course.id)
+      .filter((e) => e.courseId === course.id && !e.onDate)
       .map((e) => ({
         dayOfWeek: e.dayOfWeek,
         startTime: e.startTime,
@@ -399,7 +409,9 @@ function TimetableContent() {
         // (SetNull), it never deletes the records, so this never touches
         // attendance history - marking the course again on a future day
         // just re-tags against whichever new entry matches.
-        const currentEntries = timetableEntries.filter((e) => e.courseId === id);
+        // Only the weekly slots - one-time extra classes aren't part of the
+        // course's schedule and must survive a schedule edit.
+        const currentEntries = timetableEntries.filter((e) => e.courseId === id && !e.onDate);
         for (const entry of currentEntries) {
           await fetch(`/api/timetable?id=${entry.id}`, { method: "DELETE" });
         }
@@ -607,9 +619,21 @@ function TimetableContent() {
   };
 
   // "HH:MM" is zero-padded 24-hour, so string order is chronological order.
+  const weeklyEntries = timetableEntries.filter((e) => !e.onDate);
+  const todayKey = localDateKey(new Date());
+  // Upcoming one-time classes, soonest first; past ones stay in attendance
+  // history but drop off this list.
+  const upcomingExtras = timetableEntries
+    .filter((e) => e.onDate && e.onDate.slice(0, 10) >= todayKey)
+    .sort((a, b) => (a.onDate! + a.startTime).localeCompare(b.onDate! + b.startTime));
   const entriesByDay = DAYS.map((day, dayIndex) =>
-    timetableEntries
-      .filter((entry) => entry.dayOfWeek === dayIndex)
+    [
+      ...weeklyEntries.filter((entry) => entry.dayOfWeek === dayIndex),
+      // Today's extra classes show up in today's column alongside the weekly ones.
+      ...(dayIndex === todayDayIndex
+        ? timetableEntries.filter((e) => e.onDate && e.onDate.slice(0, 10) === todayKey)
+        : []),
+    ]
       .sort((a, b) => a.startTime.localeCompare(b.startTime))
   );
 
@@ -620,7 +644,7 @@ function TimetableContent() {
   // stop matching what the Timetable actually shows.
   const duplicateGroups = (() => {
     const seen = new Map<string, TimetableEntry[]>();
-    for (const entry of timetableEntries) {
+    for (const entry of weeklyEntries) {
       const key = `${entry.courseId}|${entry.dayOfWeek}|${entry.startTime}|${entry.endTime}`;
       const list = seen.get(key) || [];
       list.push(entry);
@@ -635,7 +659,7 @@ function TimetableContent() {
   // leftovers created before that existed.
   const mergeableGroups = (() => {
     const byCourseDay = new Map<string, TimetableEntry[]>();
-    for (const entry of timetableEntries) {
+    for (const entry of weeklyEntries) {
       const key = `${entry.courseId}|${entry.dayOfWeek}`;
       const list = byCourseDay.get(key) || [];
       list.push(entry);
@@ -724,7 +748,8 @@ function TimetableContent() {
               <Button
                 onClick={() => {
                   if (showForm) return resetEntryForm();
-                  setNewEntry((prev) => ({ ...prev, dayOfWeek: selectedDay }));
+                  setEntryIsExtra(true);
+                  setNewEntry((prev) => ({ ...prev, onDate: localDateKey(new Date()) }));
                   setShowForm(true);
                 }}
               >
@@ -734,7 +759,7 @@ function TimetableContent() {
                   </>
                 ) : (
                   <>
-                    <Plus className="h-4 w-4" /> Add Class
+                    <CalendarPlus className="h-4 w-4" /> Extra Class
                   </>
                 )}
               </Button>
@@ -964,6 +989,38 @@ function TimetableContent() {
                 );
               })}
             </motion.div>
+
+            {upcomingExtras.length > 0 && (
+              <div className="frosted mb-8 rounded-2xl p-5">
+                <h2 className="mb-3 text-lg font-semibold text-foreground">Extra classes</h2>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {upcomingExtras.map((entry) => {
+                    const [y, m, d] = entry.onDate!.slice(0, 10).split("-").map(Number);
+                    const label = new Date(y, m - 1, d).toLocaleDateString(undefined, {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    });
+                    return (
+                      <div key={entry.id}>
+                        <p className="mb-1 px-1 text-xs font-semibold uppercase tracking-wider text-primary">
+                          {entry.onDate!.slice(0, 10) === todayKey ? "Today" : label}
+                        </p>
+                        <ScheduleClassChip
+                          courseName={entry.course.name}
+                          startTime={entry.startTime}
+                          endTime={entry.endTime}
+                          room={entry.room}
+                          instructor={entry.instructor}
+                          onEdit={() => startEditEntry(entry)}
+                          onDelete={() => handleDeleteEntry(entry.id)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Courses */}
             <div className="frosted mb-8 rounded-2xl p-6">
@@ -1241,8 +1298,21 @@ function TimetableContent() {
             <ResponsiveSheet
               open={showForm}
               onClose={resetEntryForm}
-              title={editingEntryId ? "Edit Class" : "Add Class"}
+              title={
+                entryIsExtra
+                  ? editingEntryId
+                    ? "Edit Extra Class"
+                    : "Extra Class"
+                  : "Edit Class"
+              }
             >
+                {entryIsExtra && !editingEntryId && (
+                  <p className="mb-4 text-sm text-muted-foreground">
+                    A one-time lecture on a specific date - like a cancelled class rescheduled to
+                    Saturday. It counts toward that subject&apos;s total; your weekly timetable
+                    stays as it is.
+                  </p>
+                )}
                 {entryError && (
                   <div className="frosted-inset mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4 shrink-0" />
@@ -1271,23 +1341,38 @@ function TimetableContent() {
                       </SelectNative>
                     </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-foreground">
-                        Day
-                      </label>
-                      <SelectNative
-                        value={newEntry.dayOfWeek}
-                        onChange={(e) =>
-                          setNewEntry({ ...newEntry, dayOfWeek: parseInt(e.target.value) })
-                        }
-                      >
-                        {DAYS.map((day, index) => (
-                          <option key={index} value={index}>
-                            {day}
-                          </option>
-                        ))}
-                      </SelectNative>
-                    </div>
+                    {entryIsExtra ? (
+                      <div>
+                        <label htmlFor="extra-class-date" className="mb-2 block text-sm font-medium text-foreground">
+                          Date
+                        </label>
+                        <Input
+                          id="extra-class-date"
+                          type="date"
+                          value={newEntry.onDate}
+                          onChange={(e) => setNewEntry({ ...newEntry, onDate: e.target.value })}
+                          required
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-foreground">
+                          Day
+                        </label>
+                        <SelectNative
+                          value={newEntry.dayOfWeek}
+                          onChange={(e) =>
+                            setNewEntry({ ...newEntry, dayOfWeek: parseInt(e.target.value) })
+                          }
+                        >
+                          {DAYS.map((day, index) => (
+                            <option key={index} value={index}>
+                              {day}
+                            </option>
+                          ))}
+                        </SelectNative>
+                      </div>
+                    )}
 
                     <div>
                       <label className="mb-2 block text-sm font-medium text-foreground">
@@ -1343,7 +1428,7 @@ function TimetableContent() {
                   </div>
 
                   <Button type="submit" className="w-full">
-                    {editingEntryId ? "Save Changes" : "Add to Timetable"}
+                    {editingEntryId ? "Save Changes" : entryIsExtra ? "Add Extra Class" : "Add to Timetable"}
                   </Button>
                 </form>
             </ResponsiveSheet>

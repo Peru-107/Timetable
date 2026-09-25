@@ -28,3 +28,8 @@ export function isSameDay(a: Date, b: Date): boolean {
     a.getDate() === b.getDate()
   );
 }
+
+/** Local calendar date as "YYYY-MM-DD" (for comparing with date-only fields). */
+export function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}

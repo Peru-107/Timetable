@@ -56,12 +56,26 @@ export async function scheduleRemainingClassesToday(userIds?: string[]): Promise
 
   const entries = await prisma.timetableEntry.findMany({
     where: {
-      dayOfWeek,
-      semester: {
-        userId: { in: targetUserIds.filter((id) => !holidayUserIds.has(id)) },
-        startDate: { lt: tomorrowMidnight },
-        endDate: { gte: todayMidnight },
-      },
+      OR: [
+        // Weekly classes on today's weekday, unless the student marked
+        // today a holiday...
+        {
+          dayOfWeek,
+          onDate: null,
+          semester: {
+            userId: { in: targetUserIds.filter((id) => !holidayUserIds.has(id)) },
+            startDate: { lt: tomorrowMidnight },
+            endDate: { gte: todayMidnight },
+          },
+        },
+        // ...plus any one-time extra class scheduled for today (stored as
+        // the date's UTC midnight, like holidays) - even on a holiday,
+        // since the student added it on purpose.
+        {
+          onDate: { gte: holidayStart, lt: holidayEnd },
+          semester: { userId: { in: targetUserIds } },
+        },
+      ],
     },
     include: { course: true, semester: { select: { userId: true } } },
   });

@@ -157,15 +157,21 @@ export async function calculateAttendanceStats(
   const semester = await prisma.semester.findUnique({ where: { id: semesterId } });
   const weeksInSemester = semester?.weeks ?? 15;
 
-  // Get all timetable entries for the semester
-  const timetableEntries = await prisma.timetableEntry.findMany({
+  // Weekly slots repeat every teaching week; a one-time extra class
+  // (onDate set) happens once.
+  const allEntries = await prisma.timetableEntry.findMany({
     where: { semesterId },
   });
+  const timetableEntries = allEntries.filter((e) => !e.onDate);
+  const extraEntries = allEntries.filter((e) => e.onDate);
 
   // Calculate total hours in semester, minus classes that fall on holidays
   let totalHours = 0;
   timetableEntries.forEach((entry) => {
     totalHours += computeHoursFromTimes(entry.startTime, entry.endTime) * weeksInSemester;
+  });
+  extraEntries.forEach((entry) => {
+    totalHours += computeHoursFromTimes(entry.startTime, entry.endTime);
   });
   if (semester) {
     const lost = await holidayHoursByCourse(userId, semester, timetableEntries);
@@ -288,7 +294,7 @@ export async function calculateAttendanceStatsByCourse(
   const lostToHolidays = await holidayHoursByCourse(
     userId,
     semester,
-    courses.flatMap((c) => c.timetableEntries)
+    courses.flatMap((c) => c.timetableEntries.filter((e) => !e.onDate))
   );
   const recordsByCourse = new Map<string, typeof attendanceRecords>();
   for (const record of attendanceRecords) {
@@ -298,11 +304,18 @@ export async function calculateAttendanceStatsByCourse(
   }
 
   return courses.map((course) => {
-    const weeklyHours = course.timetableEntries.reduce(
+    const weekly = course.timetableEntries.filter((e) => !e.onDate);
+    const weeklyHours = weekly.reduce(
       (sum, e) => sum + computeHoursFromTimes(e.startTime, e.endTime),
       0
     );
-    const totalHours = Math.max(0, weeklyHours * weeksInSemester - (lostToHolidays.get(course.id) || 0));
+    const extraHours = course.timetableEntries
+      .filter((e) => e.onDate)
+      .reduce((sum, e) => sum + computeHoursFromTimes(e.startTime, e.endTime), 0);
+    const totalHours = Math.max(
+      0,
+      weeklyHours * weeksInSemester + extraHours - (lostToHolidays.get(course.id) || 0)
+    );
 
     const records = recordsByCourse.get(course.id) || [];
     const attendedHours = records
@@ -320,7 +333,7 @@ export async function calculateAttendanceStatsByCourse(
     const heldHours = attendedHours + leavesUsed;
     const canReachTarget = leavesUsed <= missBudget + 1e-9;
 
-    const sessionsPerWeek = course.timetableEntries.length;
+    const sessionsPerWeek = weekly.length;
     const avgSessionHours = sessionsPerWeek > 0 ? weeklyHours / sessionsPerWeek : 0;
     const classesAvailableToMiss =
       avgSessionHours > 0 ? Math.floor(hoursAvailableToMiss / avgSessionHours + 1e-9) : 0;

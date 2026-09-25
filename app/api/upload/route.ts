@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
 
       const existingEntries = await prisma.timetableEntry.findMany({
-        where: { semesterId },
+        where: { semesterId, onDate: null },
       });
 
       const mergePlan = planEntryMerge(extraction.entries, codeToCourseId, existingEntries);
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       // that this scan's classes are in.
       for (const courseId of affectedCourseIds) {
         const courseEntries = await prisma.timetableEntry.findMany({
-          where: { courseId },
+          where: { courseId, onDate: null },
         });
         const totalMinutes = courseEntries.reduce((sum, e) => {
           const [sh, sm] = e.startTime.split(":").map(Number);
