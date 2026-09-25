@@ -56,7 +56,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       className={`${inter.variable} ${dmSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        {/* Applies the saved light/dark and colour choice before first paint,
+            so the page doesn't flash the default theme on load. Mirrors
+            ThemeProvider's logic. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var d=document.documentElement,p=localStorage.getItem("timetable-theme-preference")||"auto",h=new Date().getHours();d.setAttribute("data-theme",p==="auto"?(h>=19||h<6?"dark":"light"):p);d.setAttribute("data-accent",localStorage.getItem("timetable-accent")||"saffron")}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <SessionProvider>

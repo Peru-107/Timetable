@@ -49,7 +49,7 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
 
   return (
     <>
-      <nav className="frosted sticky top-4 z-10 mx-4 mb-8 rounded-2xl px-4 py-3 sm:mx-6 sm:px-6 lg:mx-8">
+      <nav className="glass sticky top-4 z-10 mx-4 mb-8 rounded-2xl px-4 py-3 sm:mx-6 sm:px-6 lg:mx-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <Link href="/dashboard" className="font-display text-lg font-bold text-foreground">
             Timetable Tracker
@@ -130,7 +130,7 @@ export function DashboardNav({ semesterId }: { semesterId?: string | null }) {
       </nav>
 
       {/* Mobile bottom tab bar - kept on the plain glass look, not the liquid bevel */}
-      <nav className="frosted frosted-no-bevel fixed inset-x-3 bottom-3 z-10 rounded-2xl px-1 py-1 sm:hidden">
+      <nav className="glass fixed inset-x-3 bottom-3 z-10 rounded-[1.6rem] px-1 py-1 sm:hidden">
         <div className="flex items-center justify-between">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;

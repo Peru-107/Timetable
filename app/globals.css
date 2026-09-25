@@ -1,28 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f4ef;
-  --foreground: #221f1b;
-  --card: #f6f4ef;
+  --background: #f4f1ec;
+  --foreground: #1f1a14;
+  --card: #f4f1ec;
   --card-foreground: #221f1b;
-  --primary: #c9843a;
+  --primary: #c97a1f;
   --primary-foreground: #ffffff;
   --secondary: #2f8f82;
   --secondary-foreground: #ffffff;
   --muted: #efece5;
-  --muted-foreground: #82786a;
+  --muted-foreground: #7c7266;
   --accent: #efece5;
   --accent-foreground: #221f1b;
-  --destructive: #96392c;
+  --destructive: #cc4538;
   --destructive-foreground: #ffffff;
-  --success: #6f8f52;
+  --success: #2a8f52;
   --success-foreground: #ffffff;
-  --warning: #a8632f;
+  --warning: #b87a0e;
   --warning-foreground: #ffffff;
-  --border: #e0dbcf;
-  --input: #e0dbcf;
-  --ring: #c9843a;
+  --border: #e7e0d5;
+  --input: #e7e0d5;
+  --ring: #c97a1f;
   --radius: 1.125rem;
+
+  /* Bento surfaces: solid tiles on the page, a softer inset inside them */
+  --tile: #ffffff;
+  --tile-inset: #f6f2ec;
+  --tile-shadow: 0 1px 1px rgba(60, 40, 10, 0.04), 0 10px 24px -18px rgba(60, 40, 10, 0.3);
 
   --neu-light: #fdfbf8;
   --neu-dark: #d9d2c5;
@@ -42,16 +47,16 @@
   --bg-stop-2: #efeade;
   --bg-stop-3: #e9e2d3;
 
-  --aurora-opacity: 0.16;
+  --aurora-opacity: 0.12;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #16130f;
+    --background: #120f0b;
     --foreground: #f2ece3;
-    --card: #16130f;
+    --card: #120f0b;
     --card-foreground: #f2ece3;
-    --primary: #e0a15a;
+    --primary: #eaa556;
     --primary-foreground: #221a0e;
     --secondary: #3aa89a;
     --secondary-foreground: #10222c;
@@ -59,15 +64,19 @@
     --muted-foreground: #b0a493;
     --accent: #201b16;
     --accent-foreground: #f2ece3;
-    --destructive: #d97a5c;
+    --destructive: #f08a78;
     --destructive-foreground: #2a1109;
-    --success: #8bb46a;
-    --success-foreground: #14210b;
-    --warning: #d3773f;
+    --success: #7fd08f;
+    --success-foreground: #0f1a12;
+    --warning: #f0c060;
     --warning-foreground: #2a1608;
-    --border: #2a241d;
-    --input: #2a241d;
-    --ring: #e0a15a;
+    --border: #2e2820;
+    --input: #2e2820;
+    --ring: #eaa556;
+
+    --tile: #1f1b16;
+    --tile-inset: #2a251e;
+    --tile-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 26px -18px rgba(0, 0, 0, 0.9);
 
     --neu-light: #2c2620;
     --neu-dark: #0e0c09;
@@ -87,11 +96,11 @@
 }
 
 :root[data-theme="dark"] {
-  --background: #16130f;
+  --background: #120f0b;
   --foreground: #f2ece3;
-  --card: #16130f;
+  --card: #120f0b;
   --card-foreground: #f2ece3;
-  --primary: #e0a15a;
+  --primary: #eaa556;
   --primary-foreground: #221a0e;
   --secondary: #3aa89a;
   --secondary-foreground: #10222c;
@@ -99,15 +108,19 @@
   --muted-foreground: #b0a493;
   --accent: #201b16;
   --accent-foreground: #f2ece3;
-  --destructive: #d97a5c;
+  --destructive: #f08a78;
   --destructive-foreground: #2a1109;
-  --success: #8bb46a;
-  --success-foreground: #14210b;
-  --warning: #d3773f;
+  --success: #7fd08f;
+  --success-foreground: #0f1a12;
+  --warning: #f0c060;
   --warning-foreground: #2a1608;
-  --border: #2a241d;
-  --input: #2a241d;
-  --ring: #e0a15a;
+  --border: #2e2820;
+  --input: #2e2820;
+  --ring: #eaa556;
+
+  --tile: #1f1b16;
+  --tile-inset: #2a251e;
+  --tile-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 26px -18px rgba(0, 0, 0, 0.9);
 
   --neu-light: #2c2620;
   --neu-dark: #0e0c09;
@@ -171,18 +184,14 @@ body {
   background-attachment: fixed;
 }
 
-/* ---- Layered Glass: an opaque-tinted, blurred slab with a top-edge catch
-   light, sitting on soft neumorphic shadow rather than a hard drop shadow ---- */
+/* ---- Bento + light glass ----
+   Content lives on solid tiles (fast to paint, crisp text on any phone).
+   Frosted glass is kept for the chrome only - the top bar, the bottom tab
+   bar and sheet backdrops - where the soft page light shows through. */
 .frosted {
-  background: color-mix(in srgb, rgb(var(--glass-base)) 40%, transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  backdrop-filter: blur(20px) saturate(140%);
-  border: 1px solid var(--glass-border);
-  box-shadow:
-    inset 0 1.5px 0 var(--glass-highlight),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
-    var(--glass-bevel),
-    0 10px 26px var(--glass-shadow);
+  background: var(--tile);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  box-shadow: var(--tile-shadow);
   transition:
     box-shadow 300ms var(--ease-smooth),
     background-color 300ms var(--ease-smooth),
@@ -190,29 +199,65 @@ body {
 }
 
 .frosted-sm {
-  background: color-mix(in srgb, rgb(var(--glass-base)) 40%, transparent);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid var(--glass-border);
-  box-shadow: inset 0 1px 0 var(--glass-highlight), var(--glass-bevel), 0 4px 12px var(--glass-shadow);
+  background: var(--tile);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  box-shadow: var(--tile-shadow);
   transition:
     box-shadow 300ms var(--ease-smooth),
     background-color 300ms var(--ease-smooth),
     transform 300ms var(--ease-smooth);
 }
 
-/* Opts an element back out of the liquid-glass bevel (e.g. the bottom mobile
-   tab bar, which stays on the plain blurred-glass look). Zero/transparent,
-   not `none` - `none` as one item in a comma-separated box-shadow list
-   invalidates the whole declaration and drops every layer, not just this one. */
+/* Real glass, for navigation chrome only. */
+.glass {
+  background: color-mix(in srgb, var(--tile) 66%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 30px -14px var(--glass-shadow);
+}
+
+/* Kept as a no-op hook for older markup that opted out of the bevel. */
 .frosted-no-bevel {
   --glass-bevel: 0 0 transparent;
 }
 
 .frosted-inset {
-  background: color-mix(in srgb, rgb(var(--glass-base)) 28%, transparent);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--tile-inset);
 }
+
+/* The one loud tile per screen: the class you're in / up next. */
+.hero-tile {
+  color: #fff;
+  background: linear-gradient(
+    145deg,
+    var(--primary),
+    color-mix(in srgb, var(--primary) 72%, #000) 55%,
+    var(--secondary)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 16px 30px -18px color-mix(in srgb, var(--primary) 80%, transparent);
+}
+
+/* ---- Colour themes (Profile > Appearance). Saffron is the default in :root
+   above; each theme swaps only the accent pair. Status colours
+   (success / warning / destructive) never change, so present and absent
+   always read as green and red. ---- */
+:root[data-accent="ocean"] { --primary: #1f6fd1; --secondary: #1f8f9a; --ring: #1f6fd1; }
+:root[data-accent="forest"] { --primary: #23804d; --secondary: #7f9a2f; --ring: #23804d; }
+:root[data-accent="plum"] { --primary: #6e45c9; --secondary: #c05a8a; --ring: #6e45c9; }
+:root[data-accent="rose"] { --primary: #c73b63; --secondary: #d9793a; --ring: #c73b63; }
+:root[data-accent="lagoon"] { --primary: #0d8184; --secondary: #3a6fb0; --ring: #0d8184; }
+:root[data-accent="graphite"] { --primary: #2e2e36; --secondary: #6b6b78; --ring: #2e2e36; }
+
+:root[data-theme="dark"][data-accent="ocean"] { --primary: #5aa2ff; --secondary: #3fc0c9; --ring: #5aa2ff; }
+:root[data-theme="dark"][data-accent="forest"] { --primary: #5cc98a; --secondary: #b5cc5a; --ring: #5cc98a; }
+:root[data-theme="dark"][data-accent="plum"] { --primary: #a88bff; --secondary: #e58ab5; --ring: #a88bff; }
+:root[data-theme="dark"][data-accent="rose"] { --primary: #ff7a9c; --secondary: #f0a36a; --ring: #ff7a9c; }
+:root[data-theme="dark"][data-accent="lagoon"] { --primary: #3fd0c9; --secondary: #6f9fe0; --ring: #3fd0c9; }
+:root[data-theme="dark"][data-accent="graphite"] { --primary: #e4e4ea; --secondary: #9a9aa8; --ring: #e4e4ea; }
+:root[data-theme="dark"][data-accent="graphite"] { --primary-foreground: #111114; }
 
 /* Neumorphic surfaces used for smaller/engraved controls (inputs, toggles) */
 .neu-raised {
@@ -322,4 +367,10 @@ body::before {
   [data-spotlight]::after {
     display: none;
   }
+}
+
+/* Graphite's dark accent is near-white; keep the hero dark so its white
+   text stays readable. */
+:root[data-theme="dark"][data-accent="graphite"] .hero-tile {
+  background: linear-gradient(145deg, #4a4a55, #2a2a31 55%, #5c5c68);
 }

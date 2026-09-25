@@ -122,23 +122,23 @@ function NowNextBanner({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="frosted-inset mb-4 overflow-hidden rounded-xl p-4"
+      className="hero-tile mb-4 overflow-hidden rounded-2xl p-4"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+        <p className="text-xs font-semibold uppercase tracking-wider text-white/90">
           {current ? "In class now" : "Up next"}
         </p>
-        <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+        <p className="flex items-center gap-1 text-xs font-medium text-white/80">
           <Clock className="h-3.5 w-3.5" />
           {current
             ? `ends in ${formatDuration(end - now)}`
             : `starts in ${formatDuration(start - now)}`}
         </p>
       </div>
-      <p className="mt-1 font-display text-xl font-semibold text-foreground">
+      <p className="mt-1 font-display text-xl font-semibold text-white">
         {entry.course.name}
       </p>
-      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-white/80">
         <span className="font-mono text-xs">
           {formatTime12h(entry.startTime)} - {formatTime12h(entry.endTime)}
         </span>
@@ -151,9 +151,9 @@ function NowNextBanner({
         {entry.instructor && <span>{entry.instructor}</span>}
       </p>
       {current && (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/25">
           <motion.div
-            className="bg-gradient-brand h-full rounded-full"
+            className="h-full rounded-full bg-white"
             initial={false}
             animate={{ width: `${progress * 100}%` }}
             transition={{ type: "spring", stiffness: 60, damping: 20 }}

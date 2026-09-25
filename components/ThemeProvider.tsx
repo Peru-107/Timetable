@@ -4,7 +4,35 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 export type ThemePreference = "auto" | "light" | "dark";
 
+export const ACCENTS = [
+  { id: "saffron", name: "Saffron", light: "#c97a1f", dark: "#eaa556" },
+  { id: "ocean", name: "Ocean", light: "#1f6fd1", dark: "#5aa2ff" },
+  { id: "forest", name: "Forest", light: "#23804d", dark: "#5cc98a" },
+  { id: "plum", name: "Plum", light: "#6e45c9", dark: "#a88bff" },
+  { id: "rose", name: "Rose", light: "#c73b63", dark: "#ff7a9c" },
+  { id: "lagoon", name: "Lagoon", light: "#0d8184", dark: "#3fd0c9" },
+  { id: "graphite", name: "Graphite", light: "#2e2e36", dark: "#e4e4ea" },
+] as const;
+export type AccentId = (typeof ACCENTS)[number]["id"];
+
 const STORAGE_KEY = "timetable-theme-preference";
+export const ACCENT_STORAGE_KEY = "timetable-accent";
+
+function readStored<T extends string>(key: string, fallback: T): T {
+  try {
+    return (localStorage.getItem(key) as T | null) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStored(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Private mode / blocked storage - the choice still applies this session.
+  }
+}
 const AUTO_RECHECK_MS = 5 * 60 * 1000;
 
 // Fixed sunset/sunrise window (no location permission needed): dark from
@@ -17,12 +45,15 @@ function computeAutoTheme(): "light" | "dark" {
 interface ThemeContextValue {
   preference: ThemePreference;
   setPreference: (preference: ThemePreference) => void;
+  accent: AccentId;
+  setAccent: (accent: AccentId) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("auto");
+  const [accent, setAccentState] = useState<AccentId>("saffron");
 
   const applyTheme = useCallback((pref: ThemePreference) => {
     const resolved = pref === "auto" ? computeAutoTheme() : pref;
@@ -30,9 +61,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const stored = (localStorage.getItem(STORAGE_KEY) as ThemePreference | null) || "auto";
+    const stored = readStored<ThemePreference>(STORAGE_KEY, "auto");
     setPreferenceState(stored);
     applyTheme(stored);
+    const storedAccent = readStored<AccentId>(ACCENT_STORAGE_KEY, "saffron");
+    setAccentState(storedAccent);
+    document.documentElement.setAttribute("data-accent", storedAccent);
   }, [applyTheme]);
 
   useEffect(() => {
@@ -44,14 +78,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setPreference = useCallback(
     (pref: ThemePreference) => {
       setPreferenceState(pref);
-      localStorage.setItem(STORAGE_KEY, pref);
+      writeStored(STORAGE_KEY, pref);
       applyTheme(pref);
     },
     [applyTheme]
   );
 
+  const setAccent = useCallback((next: AccentId) => {
+    setAccentState(next);
+    writeStored(ACCENT_STORAGE_KEY, next);
+    document.documentElement.setAttribute("data-accent", next);
+  }, []);
+
   return (
-    <ThemeContext.Provider value={{ preference, setPreference }}>
+    <ThemeContext.Provider value={{ preference, setPreference, accent, setAccent }}>
       {children}
     </ThemeContext.Provider>
   );

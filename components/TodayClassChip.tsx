@@ -161,7 +161,7 @@ export function TodayClassChip({
           }`}
           // Opaque base so the swipe reveal underneath only shows at the edge
           // the card has slid away from, not through the card itself.
-          style={{ backgroundColor: "var(--background)", ...(status ? STATUS_STYLE[status] : {}) }}
+          style={{ backgroundColor: "var(--tile-inset)", ...(status ? STATUS_STYLE[status] : {}) }}
           aria-label={`${courseName}, ${formatTime12h(startTime)} to ${formatTime12h(endTime)}${
             status ? `, marked ${status.toLowerCase()}` : ""
           }. Tap to mark present.`}

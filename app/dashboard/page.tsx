@@ -10,7 +10,6 @@ import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { DailyAttendanceCard } from "@/components/DailyAttendanceCard";
 import { SkipCalculatorCard, type CourseSkipStat } from "@/components/SkipCalculatorCard";
-import { LiquidGlassCard } from "@/components/kokonutui/liquid-glass-card";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -214,6 +213,14 @@ export default function DashboardPage() {
       <DashboardNav semesterId={activeSemester?.id} />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Large title, iOS-style */}
+        <div className="mb-4 px-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+          <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">Today</h1>
+        </div>
+
         {/* Semester Selection */}
         <div className="mb-6">
           <h2 className="sr-only">Semester</h2>
@@ -333,107 +340,90 @@ export default function DashboardPage() {
 
             <SkipCalculatorCard courses={courseStats} />
 
-            {/* Statistics Grid */}
+            {/* Bento stats: 2 x 2 on phones, one row of 4 on desktop */}
             <motion.div
-              className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3"
+              className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4"
               initial="hidden"
               animate="show"
-              variants={{ show: { transition: { staggerChildren: 0.08 } } }}
+              variants={{ show: { transition: { staggerChildren: 0.06 } } }}
             >
-              {/* Attendance Card */}
               {attendanceStats && (
-                <motion.div variants={statCardVariants}>
-                  <LiquidGlassCard data-spotlight>
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
-                          <ClipboardCheck className="h-5 w-5 text-primary" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-foreground">
-                          Attendance
-                        </h3>
-                      </div>
-                      {attendanceStats.currentStreakDays > 0 && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 22, delay: 0.15 }}
-                          className="frosted-inset flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-warning"
-                          title={`${attendanceStats.currentStreakDays}-day streak of classes with no absences`}
-                        >
-                          <Flame className="h-3.5 w-3.5" />
-                          <AnimatedNumber value={attendanceStats.currentStreakDays} />
-                        </motion.div>
-                      )}
-                    </div>
-                    <div className="text-gradient-brand mb-2 font-display text-4xl font-bold">
-                      {attendanceStats.heldHours > 0 ? (
-                        <AnimatedNumber value={attendanceStats.attendancePercentage} suffix="%" />
-                      ) : (
-                        "--"
-                      )}
-                    </div>
-                    <div className="frosted-inset mb-4 h-2 overflow-hidden rounded-full">
-                      <motion.div
-                        className="bg-gradient-brand h-full rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(100, attendanceStats.attendancePercentage)}%` }}
-                        transition={{ type: "spring", stiffness: 80, damping: 20 }}
-                      />
-                    </div>
-                    <p className="mb-4 text-muted-foreground">
-                      {attendanceStats.attendedHours}/{attendanceStats.heldHours} hours attended so
-                      far
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      You can still miss {attendanceStats.leavesAvailable}h this semester
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Required: 80% of {attendanceStats.totalHours}h
-                    </p>
-                  </LiquidGlassCard>
+                <motion.div variants={statCardVariants} className="frosted rounded-3xl p-4" data-spotlight>
+                  <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+                    <ClipboardCheck className="h-4 w-4 text-primary" />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider">Attendance</h3>
+                  </div>
+                  <div
+                    className={`font-display text-3xl font-bold tracking-tight ${
+                      attendanceStats.heldHours === 0
+                        ? "text-muted-foreground"
+                        : attendanceStats.attendancePercentage >= 80
+                          ? "text-success"
+                          : "text-destructive"
+                    }`}
+                  >
+                    {attendanceStats.heldHours > 0 ? (
+                      <AnimatedNumber value={attendanceStats.attendancePercentage} suffix="%" />
+                    ) : (
+                      "--"
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {attendanceStats.attendedHours} of {attendanceStats.heldHours}h so far · 80%
+                    needed
+                  </p>
                 </motion.div>
               )}
 
-              {/* CGPA Card */}
+              {attendanceStats && (
+                <motion.div variants={statCardVariants} className="frosted rounded-3xl p-4" data-spotlight>
+                  <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+                    <Flame className="h-4 w-4 text-warning" />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider">Streak</h3>
+                  </div>
+                  <div className="font-display text-3xl font-bold tracking-tight text-foreground">
+                    <AnimatedNumber value={attendanceStats.currentStreakDays} />
+                    <span className="ml-1 text-sm font-semibold text-muted-foreground">
+                      {attendanceStats.currentStreakDays === 1 ? "day" : "days"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">in a row with no absences</p>
+                </motion.div>
+              )}
+
               {cgpaData && (
-                <motion.div variants={statCardVariants}>
-                  <LiquidGlassCard data-spotlight>
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
-                        <GraduationCap className="h-5 w-5 text-success" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-foreground">CGPA</h3>
-                    </div>
-                    <div className="mb-2 font-display text-4xl font-bold text-success">
-                      <AnimatedNumber value={cgpaData.cgpa} decimals={2} suffix="/4.0" />
-                    </div>
-                    <p className="text-muted-foreground">
-                      {cgpaData.courses.length} courses
-                    </p>
-                  </LiquidGlassCard>
+                <motion.div variants={statCardVariants} className="frosted rounded-3xl p-4" data-spotlight>
+                  <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+                    <GraduationCap className="h-4 w-4 text-primary" />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider">CGPA</h3>
+                  </div>
+                  <div className="font-display text-3xl font-bold tracking-tight text-foreground">
+                    {cgpaData.courses.length > 0 ? (
+                      <AnimatedNumber value={cgpaData.cgpa} decimals={2} />
+                    ) : (
+                      <span className="text-muted-foreground">--</span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    out of 4.0 · {cgpaData.courses.length} graded
+                  </p>
                 </motion.div>
               )}
 
-              {/* Courses Card */}
-              {activeSemester && (
-                <motion.div variants={statCardVariants}>
-                  <LiquidGlassCard data-spotlight>
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
-                        <BookMarked className="h-5 w-5 text-warning" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-foreground">Courses</h3>
-                    </div>
-                    <div className="mb-2 font-display text-4xl font-bold text-warning">
-                      <AnimatedNumber value={activeSemester.courses.length} />
-                    </div>
-                    <p className="text-muted-foreground">
-                      Active courses this semester
-                    </p>
-                  </LiquidGlassCard>
-                </motion.div>
-              )}
+              <motion.div variants={statCardVariants} className="frosted rounded-3xl p-4" data-spotlight>
+                <div className="mb-2 flex items-center gap-2 text-muted-foreground">
+                  <BookMarked className="h-4 w-4 text-primary" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wider">Courses</h3>
+                </div>
+                <div className="font-display text-3xl font-bold tracking-tight text-foreground">
+                  <AnimatedNumber value={activeSemester.courses.length} />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {attendanceStats
+                    ? `can still miss ${attendanceStats.leavesAvailable}h this sem`
+                    : "this semester"}
+                </p>
+              </motion.div>
             </motion.div>
 
             {/* Study Notebook entry point - this is its only home on mobile,

@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
-import { useTheme, type ThemePreference } from "@/components/ThemeProvider";
-import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2, Bell, BellOff, Send } from "lucide-react";
+import { ACCENTS, useTheme, type ThemePreference } from "@/components/ThemeProvider";
+import { CheckCircle2, AlertCircle, Sun, Moon, MonitorSmartphone, Trash2, Bell, BellOff, Send, Check } from "lucide-react";
 
 /**
  * Notification.requestPermission(), serviceWorker.ready, and pushManager.subscribe()
@@ -70,7 +70,7 @@ function ProfileContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { semesterId } = useActiveSemester();
-  const { preference, setPreference } = useTheme();
+  const { preference, setPreference, accent, setAccent } = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
   const [name, setName] = useState("");
@@ -510,6 +510,37 @@ function ProfileContent() {
                   {label}
                 </button>
               ))}
+            </div>
+
+            <h3 className="mb-1 mt-6 text-sm font-semibold text-foreground">Colour</h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Changes buttons, highlights and the &ldquo;In class now&rdquo; card. Present and
+              absent always stay green and red.
+            </p>
+            <div role="radiogroup" aria-label="Colour theme" className="flex flex-wrap gap-3">
+              {ACCENTS.map((a) => {
+                const selected = accent === a.id;
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setAccent(a.id)}
+                    className="group flex w-16 flex-col items-center gap-1.5 rounded-xl py-1 text-xs font-medium text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    <span
+                      className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-transform group-active:scale-95 ${
+                        selected ? "ring-2 ring-foreground ring-offset-2 ring-offset-background" : ""
+                      }`}
+                      style={{ background: `linear-gradient(135deg, ${a.light} 50%, ${a.dark} 50%)` }}
+                    >
+                      {selected && <Check className="h-5 w-5 text-white drop-shadow" />}
+                    </span>
+                    <span className={selected ? "text-foreground" : ""}>{a.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

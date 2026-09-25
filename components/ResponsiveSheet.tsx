@@ -76,7 +76,7 @@ export function ResponsiveSheet({
       {open && (
         <div className="fixed inset-0 z-50" key="sheet-root">
           <motion.div
-            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/45 backdrop-blur-[3px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
