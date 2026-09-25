@@ -291,3 +291,35 @@ body::before {
 .bg-gradient-brand {
   background: linear-gradient(90deg, var(--primary), var(--secondary));
 }
+
+/* Cursor-following highlight for cards marked data-spotlight (desktop
+   only - SmoothScroll.tsx only feeds the position on fine pointers). */
+[data-spotlight] {
+  position: relative;
+  isolation: isolate;
+}
+[data-spotlight]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(
+    280px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    color-mix(in srgb, var(--primary) 12%, transparent),
+    transparent 70%
+  );
+  z-index: -1;
+}
+@media (hover: hover) and (pointer: fine) {
+  [data-spotlight]:hover::after {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-spotlight]::after {
+    display: none;
+  }
+}

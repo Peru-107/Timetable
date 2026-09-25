@@ -220,7 +220,7 @@ export function HolidayImportPanel({ semesterId, onImported, onClose }: HolidayI
             </div>
           </div>
 
-          <div className="max-h-80 space-y-2 overflow-y-auto">
+          <div data-lenis-prevent className="max-h-80 space-y-2 overflow-y-auto">
             {holidays.map((holiday, index) => (
               <div key={index} className="frosted-inset flex items-center gap-2 rounded-xl p-2.5">
                 <Checkbox

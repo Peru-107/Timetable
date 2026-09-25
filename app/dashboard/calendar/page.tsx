@@ -11,6 +11,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { EventListItem } from "@/components/EventListItem";
+import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { HolidayImportPanel } from "@/components/HolidayImportPanel";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { Plus, X, ChevronLeft, ChevronRight, Trash2, Upload, Palmtree, AlertCircle } from "lucide-react";
@@ -453,15 +454,18 @@ function CalendarContent() {
               )}
 
               {/* Add/Edit Event Form */}
-              {showForm && (
-                <div className="frosted mb-6 rounded-2xl p-6">
-                  <h3 className="mb-4 text-lg font-semibold text-foreground">
-                    {editingEventId
-                      ? "Edit Event"
-                      : newEvent.eventType === "holiday"
-                        ? "Mark Holiday"
-                        : "New Event"}
-                  </h3>
+              <ResponsiveSheet
+                open={showForm}
+                onClose={resetForm}
+                title={
+                  editingEventId
+                    ? "Edit Event"
+                    : newEvent.eventType === "holiday"
+                      ? "Mark Holiday"
+                      : "New Event"
+                }
+                inlineClassName="frosted mb-6 rounded-2xl p-6"
+              >
                   {eventError && (
                     <div className="frosted-inset mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
                       <AlertCircle className="h-4 w-4 shrink-0" />
@@ -569,15 +573,14 @@ function CalendarContent() {
                       )}
                     </div>
                   </form>
-                </div>
-              )}
+              </ResponsiveSheet>
 
               {/* Upcoming Events */}
               <div className="frosted rounded-2xl p-6">
                 <h3 className="mb-4 text-lg font-semibold text-foreground">
                   Upcoming Events
                 </h3>
-                <div className="max-h-96 space-y-2 overflow-y-auto">
+                <div data-lenis-prevent className="max-h-96 space-y-2 overflow-y-auto">
                   {events
                     .filter((e) => new Date(e.dueDate) >= startOfToday())
                     .sort(

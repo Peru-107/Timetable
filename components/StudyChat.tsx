@@ -124,7 +124,7 @@ export function StudyChat({ semesterId, courseId, scopeLabel }: StudyChatProps) 
         </div>
       </div>
 
-      <div ref={scrollRef} className="mb-3 flex max-h-96 min-h-[10rem] flex-col gap-3 overflow-y-auto pr-1">
+      <div ref={scrollRef} data-lenis-prevent className="mb-3 flex max-h-96 min-h-[10rem] flex-col gap-3 overflow-y-auto pr-1">
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading...</p>
         ) : messages.length === 0 ? (

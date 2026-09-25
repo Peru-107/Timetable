@@ -258,7 +258,7 @@ function StudyCourseContent() {
                   </button>
                 </div>
                 {expandedId === m.id && m.extractedText && (
-                  <div className="frosted-inset mx-4 mb-4 max-h-64 overflow-y-auto rounded-xl p-4 text-sm text-foreground whitespace-pre-wrap">
+                  <div data-lenis-prevent className="frosted-inset mx-4 mb-4 max-h-64 overflow-y-auto rounded-xl p-4 text-sm text-foreground whitespace-pre-wrap">
                     {m.extractedText}
                   </div>
                 )}

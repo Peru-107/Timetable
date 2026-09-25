@@ -2,9 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ClipboardCheck, Palmtree } from "lucide-react";
-import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayClassChip";
-import { computeHoursFromTimes, startOfDay, isSameDay } from "@/lib/attendanceUtils";
+import { motion } from "motion/react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Clock,
+  MapPin,
+  Palmtree,
+  PartyPopper,
+} from "lucide-react";
+import {
+  TodayClassChip,
+  type TodayAttendanceStatus,
+} from "@/components/TodayClassChip";
+import {
+  computeHoursFromTimes,
+  formatTime12h,
+  startOfDay,
+  isSameDay,
+} from "@/lib/attendanceUtils";
 
 interface TimetableEntry {
   id: string;
@@ -25,7 +42,127 @@ interface AttendanceRecord {
   status: "PRESENT" | "ABSENT" | "CANCELLED";
 }
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+function formatDuration(mins: number): string {
+  if (mins < 1) return "less than a minute";
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}
+
+/** Minutes since local midnight, refreshed every 30 seconds. */
+function useNowMinutes() {
+  const read = () => {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+  };
+  const [now, setNow] = useState(read);
+  useEffect(() => {
+    const id = setInterval(() => setNow(read()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+/**
+ * The first thing you see on a school day: the class you're in (with how
+ * long is left) or the next one (with a countdown and room), so you don't
+ * have to scan the list to know where to be.
+ */
+function NowNextBanner({
+  entries,
+  now,
+}: {
+  entries: TimetableEntry[];
+  now: number;
+}) {
+  if (entries.length === 0) return null;
+  const current = entries.find(
+    (e) => toMinutes(e.startTime) <= now && now < toMinutes(e.endTime),
+  );
+  const next = entries.find((e) => toMinutes(e.startTime) > now);
+
+  if (!current && !next) {
+    return (
+      <div className="frosted-inset mb-4 flex items-center gap-3 rounded-xl p-4 text-sm">
+        <PartyPopper className="h-5 w-5 flex-shrink-0 text-success" />
+        <span className="text-foreground">
+          <span className="font-semibold">Classes are over for today.</span>{" "}
+          Mark any you haven&apos;t yet below.
+        </span>
+      </div>
+    );
+  }
+
+  const entry = (current || next)!;
+  const start = toMinutes(entry.startTime);
+  const end = toMinutes(entry.endTime);
+  const progress = current
+    ? Math.min(1, Math.max(0, (now - start) / (end - start)))
+    : 0;
+
+  return (
+    <motion.div
+      key={entry.id}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className="frosted-inset mb-4 overflow-hidden rounded-xl p-4"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+          {current ? "In class now" : "Up next"}
+        </p>
+        <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          {current
+            ? `ends in ${formatDuration(end - now)}`
+            : `starts in ${formatDuration(start - now)}`}
+        </p>
+      </div>
+      <p className="mt-1 font-display text-xl font-semibold text-foreground">
+        {entry.course.name}
+      </p>
+      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+        <span className="font-mono text-xs">
+          {formatTime12h(entry.startTime)} - {formatTime12h(entry.endTime)}
+        </span>
+        {entry.room && (
+          <span className="flex items-center gap-1">
+            <MapPin className="h-3.5 w-3.5" />
+            {entry.room}
+          </span>
+        )}
+        {entry.instructor && <span>{entry.instructor}</span>}
+      </p>
+      {current && (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/10">
+          <motion.div
+            className="bg-gradient-brand h-full rounded-full"
+            initial={false}
+            animate={{ width: `${progress * 100}%` }}
+            transition={{ type: "spring", stiffness: 60, damping: 20 }}
+          />
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 /**
  * Ease-of-access attendance marking on the Overview page: same tap/hold/
@@ -43,15 +180,21 @@ export function DailyAttendanceCard({
 }) {
   const router = useRouter();
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
-  const [holidays, setHolidays] = useState<Array<{ date: string; title: string }>>([]);
+  const [holidays, setHolidays] = useState<
+    Array<{ date: string; title: string }>
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() =>
+    startOfDay(new Date()),
+  );
   // Records tagged with the specific timetable entry they came from, keyed
   // by that entry's id - and a courseId-keyed fallback for records with no
   // entry tag (manual entries, or ones created before per-entry tracking
   // existed). This split is what lets two same-day sessions of one course
   // show independent status instead of colliding on courseId alone.
-  const [recordsByEntry, setRecordsByEntry] = useState<Record<string, AttendanceRecord>>({});
+  const [recordsByEntry, setRecordsByEntry] = useState<
+    Record<string, AttendanceRecord>
+  >({});
   const [recordsByCourseFallback, setRecordsByCourseFallback] = useState<
     Record<string, AttendanceRecord>
   >({});
@@ -59,6 +202,7 @@ export function DailyAttendanceCard({
   const getRecordForEntry = (entry: TimetableEntry) =>
     recordsByEntry[entry.id] || recordsByCourseFallback[entry.courseId];
 
+  const nowMinutes = useNowMinutes();
   const today = startOfDay(new Date());
   const isToday = isSameDay(selectedDate, today);
   const canGoForward = selectedDate < today;
@@ -86,14 +230,18 @@ export function DailyAttendanceCard({
     if (!semesterId) return;
     fetch(`/api/calendar?semesterId=${semesterId}`)
       .then((res) => res.json())
-      .then((data: Array<{ title: string; eventType: string; dueDate: string }>) =>
-        setHolidays(
-          Array.isArray(data)
-            ? data
-                .filter((e) => e.eventType === "holiday")
-                .map((e) => ({ date: e.dueDate.slice(0, 10), title: e.title }))
-            : []
-        )
+      .then(
+        (data: Array<{ title: string; eventType: string; dueDate: string }>) =>
+          setHolidays(
+            Array.isArray(data)
+              ? data
+                  .filter((e) => e.eventType === "holiday")
+                  .map((e) => ({
+                    date: e.dueDate.slice(0, 10),
+                    title: e.title,
+                  }))
+              : [],
+          ),
       )
       .catch(() => setHolidays([]));
   }, [semesterId]);
@@ -122,7 +270,7 @@ export function DailyAttendanceCard({
 
   const markAttendance = async (
     entry: TimetableEntry,
-    status: "PRESENT" | "ABSENT" | "CANCELLED"
+    status: "PRESENT" | "ABSENT" | "CANCELLED",
   ) => {
     try {
       const res = await fetch("/api/attendance", {
@@ -159,7 +307,9 @@ export function DailyAttendanceCard({
     const record = getRecordForEntry(entry);
     if (!record) return;
     try {
-      const res = await fetch(`/api/attendance?id=${record.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/attendance?id=${record.id}`, {
+        method: "DELETE",
+      });
       if (res.ok) {
         setRecordsByEntry((prev) => {
           if (!(entry.id in prev)) return prev;
@@ -219,9 +369,12 @@ export function DailyAttendanceCard({
             <ClipboardCheck className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-foreground">Mark Attendance</h3>
+            <h3 className="text-lg font-semibold text-foreground">
+              Mark Attendance
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Tap to mark present, hold for more options, double-tap to clear.
+              Swipe right for present, left for absent. Tap marks present, hold
+              for more.
             </p>
           </div>
         </div>
@@ -231,7 +384,9 @@ export function DailyAttendanceCard({
             type="button"
             onClick={() =>
               canGoBack &&
-              setSelectedDate((d) => startOfDay(new Date(d.getTime() - 86400000)))
+              setSelectedDate((d) =>
+                startOfDay(new Date(d.getTime() - 86400000)),
+              )
             }
             disabled={!canGoBack}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
@@ -246,7 +401,9 @@ export function DailyAttendanceCard({
             type="button"
             onClick={() =>
               canGoForward &&
-              setSelectedDate((d) => startOfDay(new Date(d.getTime() + 86400000)))
+              setSelectedDate((d) =>
+                startOfDay(new Date(d.getTime() + 86400000)),
+              )
             }
             disabled={!canGoForward}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
@@ -263,7 +420,8 @@ export function DailyAttendanceCard({
         <div className="frosted-inset flex items-center gap-3 rounded-xl p-4 text-sm">
           <Palmtree className="h-5 w-5 flex-shrink-0 text-success" />
           <span className="text-foreground">
-            <span className="font-semibold">{holiday.title}</span> - no classes to mark
+            <span className="font-semibold">{holiday.title}</span> - no classes
+            to mark
             {isToday ? " today" : ""}.
           </span>
         </div>
@@ -272,25 +430,50 @@ export function DailyAttendanceCard({
           No classes scheduled on {DAYS[selectedDate.getDay()]}.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {entriesForDay.map((entry) => (
-            <TodayClassChip
-              key={entry.id}
-              courseName={entry.course.name}
-              startTime={entry.startTime}
-              endTime={entry.endTime}
-              room={entry.room}
-              instructor={entry.instructor}
-              status={(getRecordForEntry(entry)?.status as TodayAttendanceStatus) || null}
-              onMarkPresent={() => markAttendance(entry, "PRESENT")}
-              onMarkAbsent={() => markAttendance(entry, "ABSENT")}
-              onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
-              onClear={() => clearAttendance(entry)}
-              onEdit={editEntry}
-              onDelete={() => deleteEntry(entry.id)}
-            />
-          ))}
-        </div>
+        <>
+          {isToday && (
+            <NowNextBanner entries={entriesForDay} now={nowMinutes} />
+          )}
+          <motion.div
+            key={selectedKey}
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            initial="hidden"
+            animate="show"
+            variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+          >
+            {entriesForDay.map((entry) => (
+              <motion.div
+                key={entry.id}
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  show: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+                  },
+                }}
+              >
+                <TodayClassChip
+                  courseName={entry.course.name}
+                  startTime={entry.startTime}
+                  endTime={entry.endTime}
+                  room={entry.room}
+                  instructor={entry.instructor}
+                  status={
+                    (getRecordForEntry(entry)
+                      ?.status as TodayAttendanceStatus) || null
+                  }
+                  onMarkPresent={() => markAttendance(entry, "PRESENT")}
+                  onMarkAbsent={() => markAttendance(entry, "ABSENT")}
+                  onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
+                  onClear={() => clearAttendance(entry)}
+                  onEdit={editEntry}
+                  onDelete={() => deleteEntry(entry.id)}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        </>
       )}
     </div>
   );

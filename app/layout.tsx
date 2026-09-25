@@ -4,6 +4,7 @@ import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { SmoothScroll } from "@/components/SmoothScroll";
 
 // Body/UI text: Inter is built for dense-interface legibility, unlike DM
 // Sans's small-size-optimized, low-stroke-contrast letterforms which read
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SessionProvider>
             {children}
             <ServiceWorkerRegister />
+            <SmoothScroll />
           </SessionProvider>
         </ThemeProvider>
       </body>

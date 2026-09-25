@@ -14,6 +14,7 @@ import { NoSemesterState } from "@/components/NoSemesterState";
 import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayClassChip";
 import { ScheduleClassChip } from "@/components/ScheduleClassChip";
 import { CoursePill } from "@/components/CoursePill";
+import { ResponsiveSheet } from "@/components/ResponsiveSheet";
 import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseScheduleRows";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes, formatTime12h, startOfDay } from "@/lib/attendanceUtils";
@@ -50,6 +51,15 @@ interface AttendanceRecord {
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// Monday-first week for the day strip; values are JS getDay() indexes.
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+const daySlideVariants: Variants = {
+  enter: (dir: number) => ({ x: dir * 48, opacity: 0 }),
+  center: { x: 0, opacity: 1, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
+  exit: (dir: number) => ({ x: dir * -48, opacity: 0, transition: { duration: 0.15 } }),
+};
 
 const dayCardVariants: Variants = {
   hidden: { opacity: 0, y: 10 },
@@ -117,6 +127,19 @@ function TimetableContent() {
     todayByEntry[entry.id] || todayByCourseFallback[entry.courseId];
 
   const todayDayIndex = new Date().getDay();
+  // Phone view shows one day at a time; opens on today.
+  const [selectedDay, setSelectedDay] = useState(todayDayIndex);
+  const [dayDirection, setDayDirection] = useState(0);
+  const goToDay = (day: number) => {
+    const from = WEEK_ORDER.indexOf(selectedDay);
+    const to = WEEK_ORDER.indexOf(day);
+    setDayDirection(to > from ? 1 : -1);
+    setSelectedDay(day);
+  };
+  const stepDay = (delta: number) => {
+    const next = WEEK_ORDER.indexOf(selectedDay) + delta;
+    if (next >= 0 && next < WEEK_ORDER.length) goToDay(WEEK_ORDER[next]);
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -636,6 +659,55 @@ function TimetableContent() {
     return groups;
   })();
 
+  const renderDayBody = (dayIndex: number) => {
+    const dayEntries = entriesByDay[dayIndex];
+    const isToday = dayIndex === todayDayIndex;
+    if (isToday && todayHoliday) {
+      return (
+        <div className="frosted-inset flex items-center gap-2 rounded-xl p-3 text-sm">
+          <Palmtree className="h-4 w-4 flex-shrink-0 text-success" />
+          <span className="text-foreground">
+            <span className="font-semibold">{todayHoliday}</span> - no classes today
+          </span>
+        </div>
+      );
+    }
+    if (dayEntries.length === 0) {
+      return <p className="py-4 text-center text-sm text-muted-foreground">No classes scheduled</p>;
+    }
+    if (isToday) {
+      return dayEntries.map((entry) => (
+        <TodayClassChip
+          key={entry.id}
+          courseName={entry.course.name}
+          startTime={entry.startTime}
+          endTime={entry.endTime}
+          room={entry.room}
+          instructor={entry.instructor}
+          status={(getTodayRecordForEntry(entry)?.status as TodayAttendanceStatus) || null}
+          onMarkPresent={() => markAttendance(entry, "PRESENT")}
+          onMarkAbsent={() => markAttendance(entry, "ABSENT")}
+          onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
+          onClear={() => clearAttendance(entry)}
+          onEdit={() => startEditEntry(entry)}
+          onDelete={() => handleDeleteEntry(entry.id)}
+        />
+      ));
+    }
+    return dayEntries.map((entry) => (
+      <ScheduleClassChip
+        key={entry.id}
+        courseName={entry.course.name}
+        startTime={entry.startTime}
+        endTime={entry.endTime}
+        room={entry.room}
+        instructor={entry.instructor}
+        onEdit={() => startEditEntry(entry)}
+        onDelete={() => handleDeleteEntry(entry.id)}
+      />
+    ));
+  };
+
   if (status === "loading" || isLoading || isResolvingSemester) {
     return <PageLoader />;
   }
@@ -650,7 +722,11 @@ function TimetableContent() {
           {semesterId && (
             <div className="flex flex-wrap gap-3">
               <Button
-                onClick={() => (showForm ? resetEntryForm() : setShowForm(true))}
+                onClick={() => {
+                  if (showForm) return resetEntryForm();
+                  setNewEntry((prev) => ({ ...prev, dayOfWeek: selectedDay }));
+                  setShowForm(true);
+                }}
               >
                 {showForm ? (
                   <>
@@ -810,9 +886,16 @@ function TimetableContent() {
                 </div>
               )}
 
-              {editingCourseId && (
-                <div className="frosted-inset space-y-4 rounded-2xl p-4">
-                  <h3 className="text-sm font-semibold text-foreground">Edit Course</h3>
+              <ResponsiveSheet
+                open={!!editingCourseId}
+                onClose={() => {
+                  setEditingCourseId(null);
+                  setEditCourseError("");
+                }}
+                title="Edit Course"
+                inlineClassName="frosted-inset rounded-2xl p-4"
+              >
+                <div className="space-y-4">
                   {editCourseError && (
                     <div className="frosted flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
                       <AlertCircle className="h-4 w-4 shrink-0" />
@@ -866,7 +949,7 @@ function TimetableContent() {
                   <div className="flex gap-3">
                     <Button
                       type="button"
-                      onClick={() => handleSaveCourseEdit(editingCourseId)}
+                      onClick={() => editingCourseId && handleSaveCourseEdit(editingCourseId)}
                       disabled={isSavingCourseEdit}
                     >
                       {isSavingCourseEdit ? "Saving..." : "Save Changes"}
@@ -883,9 +966,14 @@ function TimetableContent() {
                     </Button>
                   </div>
                 </div>
-              )}
+              </ResponsiveSheet>
 
-              {showAddCourseForm && (
+              <ResponsiveSheet
+                open={showAddCourseForm}
+                onClose={() => setShowAddCourseForm(false)}
+                title="Add Course"
+                inlineClassName="pt-2"
+              >
                 <form onSubmit={handleAddCourse} className="space-y-4">
                   {addCourseError && (
                     <div className="frosted-inset flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
@@ -942,15 +1030,15 @@ function TimetableContent() {
                     <Plus className="h-4 w-4" /> Add Course
                   </Button>
                 </form>
-              )}
+              </ResponsiveSheet>
             </div>
 
             {/* Upload & Auto-Extract */}
-            {showUpload && (
-              <div className="frosted mb-8 rounded-2xl p-6">
-                <h2 className="mb-2 text-xl font-semibold text-foreground">
-                  Upload Timetable (PDF/JPG/PNG)
-                </h2>
+            <ResponsiveSheet
+              open={showUpload}
+              onClose={() => setShowUpload(false)}
+              title="Upload Timetable"
+            >
                 <p className="mb-4 text-sm text-muted-foreground">
                   List your own subjects below, then upload a photo or PDF of your
                   full class timetable. We&apos;ll read it and add only your classes
@@ -1009,15 +1097,14 @@ function TimetableContent() {
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+            </ResponsiveSheet>
 
             {/* Form to Add/Edit Entry */}
-            {showForm && (
-              <div className="frosted mb-8 rounded-2xl p-6">
-                <h2 className="mb-4 text-xl font-semibold text-foreground">
-                  {editingEntryId ? "Edit Class" : "Add Class"}
-                </h2>
+            <ResponsiveSheet
+              open={showForm}
+              onClose={resetEntryForm}
+              title={editingEntryId ? "Edit Class" : "Add Class"}
+            >
                 {entryError && (
                   <div className="frosted-inset mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4 shrink-0" />
@@ -1121,15 +1208,102 @@ function TimetableContent() {
                     {editingEntryId ? "Save Changes" : "Add to Timetable"}
                   </Button>
                 </form>
-              </div>
-            )}
+            </ResponsiveSheet>
 
-            {/* Timetable Grid - a day with no classes is just noise once it's
-                one of six identical "No classes" cards, so it collapses to a
-                single compact row; only Today and days that actually have
-                something scheduled get the full card treatment. */}
+            {/* Phone: one day at a time. A Mon-Sun strip to jump between
+                days (today preselected), and swiping the day's panel
+                sideways moves to the previous/next day. */}
+            <div className="lg:hidden">
+              <div
+                role="tablist"
+                aria-label="Day of the week"
+                className="frosted-inset mb-4 grid grid-cols-7 gap-1 rounded-2xl p-1"
+              >
+                {WEEK_ORDER.map((dayIndex) => {
+                  const selected = dayIndex === selectedDay;
+                  const count = entriesByDay[dayIndex].length;
+                  return (
+                    <button
+                      key={dayIndex}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      aria-label={`${DAYS[dayIndex]}, ${count} ${count === 1 ? "class" : "classes"}`}
+                      onClick={() => goToDay(dayIndex)}
+                      className="relative flex flex-col items-center gap-1 rounded-xl py-2 text-xs font-semibold"
+                    >
+                      {selected && (
+                        <motion.span
+                          layoutId="day-strip-pill"
+                          className="absolute inset-0 rounded-xl bg-primary"
+                          transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                        />
+                      )}
+                      <span
+                        className={`relative ${
+                          selected
+                            ? "text-primary-foreground"
+                            : dayIndex === todayDayIndex
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {DAYS[dayIndex].slice(0, 3)}
+                      </span>
+                      <span className="relative flex h-1.5 items-center gap-0.5">
+                        {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
+                          <span
+                            key={i}
+                            className={`h-1 w-1 rounded-full ${
+                              selected ? "bg-primary-foreground/80" : "bg-muted-foreground/60"
+                            }`}
+                          />
+                        ))}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="overflow-hidden">
+                <AnimatePresence mode="popLayout" initial={false} custom={dayDirection}>
+                  <motion.div
+                    key={selectedDay}
+                    custom={dayDirection}
+                    variants={daySlideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    drag="x"
+                    dragDirectionLock
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.25}
+                    onDragEnd={(_, info) => {
+                      if (info.offset.x < -60 || info.velocity.x < -400) stepDay(1);
+                      else if (info.offset.x > 60 || info.velocity.x > 400) stepDay(-1);
+                    }}
+                    style={{ touchAction: "pan-y" }}
+                    className="frosted rounded-2xl p-4"
+                  >
+                    <h3 className="mb-4 flex items-center justify-center gap-2 font-semibold text-foreground">
+                      {DAYS[selectedDay]}
+                      {selectedDay === todayDayIndex && (
+                        <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          Today
+                        </span>
+                      )}
+                    </h3>
+                    <div className="space-y-2">{renderDayBody(selectedDay)}</div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Desktop: the whole week at once. A day with no classes
+                collapses to a single compact row; only Today and days that
+                actually have something scheduled get the full card. */}
             <motion.div
-              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7"
+              className="hidden grid-cols-7 gap-3 lg:grid"
               initial="hidden"
               animate="show"
               variants={{ show: { transition: { staggerChildren: 0.05 } } }}
@@ -1161,54 +1335,7 @@ function TimetableContent() {
                         </span>
                       )}
                     </h3>
-                    <div className="space-y-2">
-                      {isToday && todayHoliday ? (
-                        <div className="frosted-inset flex items-center gap-2 rounded-xl p-3 text-sm">
-                          <Palmtree className="h-4 w-4 flex-shrink-0 text-success" />
-                          <span className="text-foreground">
-                            <span className="font-semibold">{todayHoliday}</span> - no classes today
-                          </span>
-                        </div>
-                      ) : dayEntries.length === 0 ? (
-                        <p className="text-center text-sm text-muted-foreground">
-                          No classes scheduled
-                        </p>
-                      ) : isToday ? (
-                        dayEntries.map((entry) => (
-                          <TodayClassChip
-                            key={entry.id}
-                            courseName={entry.course.name}
-                            startTime={entry.startTime}
-                            endTime={entry.endTime}
-                            room={entry.room}
-                            instructor={entry.instructor}
-                            status={
-                              (getTodayRecordForEntry(entry)?.status as TodayAttendanceStatus) ||
-                              null
-                            }
-                            onMarkPresent={() => markAttendance(entry, "PRESENT")}
-                            onMarkAbsent={() => markAttendance(entry, "ABSENT")}
-                            onMarkCancelled={() => markAttendance(entry, "CANCELLED")}
-                            onClear={() => clearAttendance(entry)}
-                            onEdit={() => startEditEntry(entry)}
-                            onDelete={() => handleDeleteEntry(entry.id)}
-                          />
-                        ))
-                      ) : (
-                        dayEntries.map((entry) => (
-                          <ScheduleClassChip
-                            key={entry.id}
-                            courseName={entry.course.name}
-                            startTime={entry.startTime}
-                            endTime={entry.endTime}
-                            room={entry.room}
-                            instructor={entry.instructor}
-                            onEdit={() => startEditEntry(entry)}
-                            onDelete={() => handleDeleteEntry(entry.id)}
-                          />
-                        ))
-                      )}
-                    </div>
+                    <div className="space-y-2">{renderDayBody(dayIndex)}</div>
                   </motion.div>
                 );
               })}

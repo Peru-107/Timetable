@@ -9,6 +9,7 @@ import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
 import { DailyAttendanceCard } from "@/components/DailyAttendanceCard";
+import { SkipCalculatorCard, type CourseSkipStat } from "@/components/SkipCalculatorCard";
 import { LiquidGlassCard } from "@/components/kokonutui/liquid-glass-card";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ interface Semester {
 interface AttendanceStats {
   totalHours: number;
   attendedHours: number;
+  heldHours: number;
   attendancePercentage: number;
   requiredHours: number;
   leavesAvailable: number;
@@ -67,6 +69,7 @@ export default function DashboardPage() {
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [activeSemester, setActiveSemester] = useState<Semester | null>(null);
   const [attendanceStats, setAttendanceStats] = useState<AttendanceStats | null>(null);
+  const [courseStats, setCourseStats] = useState<CourseSkipStat[]>([]);
   const [cgpaData, setCGPAData] = useState<CGPAData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showEditSemester, setShowEditSemester] = useState(false);
@@ -104,6 +107,7 @@ export default function DashboardPage() {
       } else {
         setActiveSemester(null);
         setAttendanceStats(null);
+        setCourseStats([]);
         setCGPAData(null);
       }
     } catch (error) {
@@ -118,6 +122,7 @@ export default function DashboardPage() {
       const res = await fetch(`/api/attendance?semesterId=${semesterId}`);
       const data = await res.json();
       setAttendanceStats(data.stats);
+      setCourseStats(Array.isArray(data.statsByCourse) ? data.statsByCourse : []);
     } catch (error) {
       console.error("Error fetching attendance stats:", error);
     }
@@ -210,11 +215,9 @@ export default function DashboardPage() {
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Semester Selection */}
-        <div className="mb-8">
-          <h2 className="mb-4 text-xl font-semibold text-foreground">
-            Select Semester
-          </h2>
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="mb-6">
+          <h2 className="sr-only">Semester</h2>
+          <div className="flex flex-wrap items-center gap-2">
             {semesters.map((sem) => (
               <Button
                 key={sem.id}
@@ -328,6 +331,8 @@ export default function DashboardPage() {
               onChange={() => fetchAttendanceStats(activeSemester.id)}
             />
 
+            <SkipCalculatorCard courses={courseStats} />
+
             {/* Statistics Grid */}
             <motion.div
               className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3"
@@ -338,7 +343,7 @@ export default function DashboardPage() {
               {/* Attendance Card */}
               {attendanceStats && (
                 <motion.div variants={statCardVariants}>
-                  <LiquidGlassCard>
+                  <LiquidGlassCard data-spotlight>
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
@@ -362,7 +367,11 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div className="text-gradient-brand mb-2 font-display text-4xl font-bold">
-                      <AnimatedNumber value={attendanceStats.attendancePercentage} suffix="%" />
+                      {attendanceStats.heldHours > 0 ? (
+                        <AnimatedNumber value={attendanceStats.attendancePercentage} suffix="%" />
+                      ) : (
+                        "--"
+                      )}
                     </div>
                     <div className="frosted-inset mb-4 h-2 overflow-hidden rounded-full">
                       <motion.div
@@ -373,13 +382,14 @@ export default function DashboardPage() {
                       />
                     </div>
                     <p className="mb-4 text-muted-foreground">
-                      {attendanceStats.attendedHours}/{attendanceStats.totalHours} hours
+                      {attendanceStats.attendedHours}/{attendanceStats.heldHours} hours attended so
+                      far
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Leaves Available: {attendanceStats.leavesAvailable}
+                      You can still miss {attendanceStats.leavesAvailable}h this semester
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Required: 80% ({attendanceStats.requiredHours} hours)
+                      Required: 80% of {attendanceStats.totalHours}h
                     </p>
                   </LiquidGlassCard>
                 </motion.div>
@@ -388,7 +398,7 @@ export default function DashboardPage() {
               {/* CGPA Card */}
               {cgpaData && (
                 <motion.div variants={statCardVariants}>
-                  <LiquidGlassCard>
+                  <LiquidGlassCard data-spotlight>
                     <div className="mb-4 flex items-center gap-3">
                       <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
                         <GraduationCap className="h-5 w-5 text-success" />
@@ -408,7 +418,7 @@ export default function DashboardPage() {
               {/* Courses Card */}
               {activeSemester && (
                 <motion.div variants={statCardVariants}>
-                  <LiquidGlassCard>
+                  <LiquidGlassCard data-spotlight>
                     <div className="mb-4 flex items-center gap-3">
                       <div className="frosted-inset flex h-10 w-10 items-center justify-center rounded-xl">
                         <BookMarked className="h-5 w-5 text-warning" />

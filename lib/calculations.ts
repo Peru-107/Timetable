@@ -2,11 +2,38 @@ import { prisma } from "./prisma";
 import { computeHoursFromTimes } from "./attendanceUtils";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Minimum attendance the university requires, as a fraction. */
+export const MIN_ATTENDANCE = 0.8;
+
+/**
+ * Attendance so far: of the class hours that have actually been held and
+ * marked (present or absent - cancelled classes never happened), the share
+ * attended. Dividing by the whole semester's hours instead would read as
+ * "below 80%" for everyone until the last week of term.
+ */
+function currentPercentage(attendedHours: number, absentHours: number): number {
+  const held = attendedHours + absentHours;
+  return held > 0 ? round2((attendedHours / held) * 100) : 0;
+}
+
+/**
+ * How many more sessions of `sessionHours` must be attended in a row to get
+ * back to MIN_ATTENDANCE: solves (P + n*s) / (H + n*s) >= 0.8 for n.
+ */
+function sessionsToRecover(attendedHours: number, heldHours: number, sessionHours: number): number {
+  const deficit = MIN_ATTENDANCE * heldHours - attendedHours;
+  if (deficit <= 0 || sessionHours <= 0) return 0;
+  return Math.ceil(deficit / ((1 - MIN_ATTENDANCE) * sessionHours) - 1e-9);
+}
 const dateKeyUTC = (d: Date) => d.toISOString().slice(0, 10);
 
 interface AttendanceStats {
   totalHours: number;
   attendedHours: number;
+  /** Present + absent hours marked so far (cancelled excluded). */
+  heldHours: number;
+  /** attendedHours / heldHours, as a percentage. */
   attendancePercentage: number;
   requiredHours: number;
   leavesAvailable: number;
@@ -120,16 +147,14 @@ export async function calculateAttendanceStats(
   // doesn't count as attended or absent for that date, but the semester's
   // total required hours stays exactly what it was.
 
-  const attendancePercentage =
-    totalHours > 0 ? (attendedHours / totalHours) * 100 : 0;
+  const attendancePercentage = currentPercentage(attendedHours, leavesUsed);
 
-  // Calculate required hours for 80% attendance
-  const requiredHours = totalHours * 0.8;
+  const requiredHours = totalHours * MIN_ATTENDANCE;
 
   // How many more hours you can still be absent for, semester-wide, and
   // still finish at or above 80% - the total "miss budget" (20% of total
   // hours) minus what's already been used.
-  const leavesAvailable = Math.max(0, round2(totalHours * 0.2 - leavesUsed));
+  const leavesAvailable = Math.max(0, round2(totalHours * (1 - MIN_ATTENDANCE) - leavesUsed));
 
   const currentStreakDays = semester
     ? computeCurrentStreak(timetableEntries, attendanceRecords, semester.startDate)
@@ -138,7 +163,8 @@ export async function calculateAttendanceStats(
   return {
     totalHours: round2(totalHours),
     attendedHours: round2(attendedHours),
-    attendancePercentage: round2(attendancePercentage),
+    heldHours: round2(attendedHours + leavesUsed),
+    attendancePercentage,
     requiredHours: round2(requiredHours),
     leavesAvailable,
     leavesUsed: round2(leavesUsed),
@@ -154,7 +180,10 @@ export interface CourseAttendanceStat {
   totalHours: number;
   attendedHours: number;
   leavesUsed: number;
+  /** Present + absent hours marked so far (cancelled excluded). */
+  heldHours: number;
   hoursAvailableToMiss: number;
+  /** attendedHours / heldHours, as a percentage. */
   attendancePercentage: number;
   /**
    * hoursAvailableToMiss converted into whole class sessions, using this
@@ -164,10 +193,17 @@ export interface CourseAttendanceStat {
    * a 1-hour lecture and another's a 3-hour lab.
    */
   classesAvailableToMiss: number;
+  /** Classes to attend in a row to get back to 80%; 0 when already there. */
+  classesToRecover: number;
   /**
-   * "critical" once already below 80% (missing more won't help - the fix
-   * is attending everything left), "warning" at 2 or fewer skippable
-   * classes remaining, "safe" otherwise.
+   * False once absences exceed the whole semester's 20% miss budget - no
+   * amount of attending will bring the semester total back to 80%.
+   */
+  canReachTarget: boolean;
+  /**
+   * "critical" when below 80% so far or the semester's miss budget is
+   * blown, "warning" at 2 or fewer skippable classes remaining, "safe"
+   * otherwise.
    */
   riskLevel: AttendanceRiskLevel;
 }
@@ -218,20 +254,24 @@ export async function calculateAttendanceStatsByCourse(
     // A cancelled class gets rescheduled, so it doesn't reduce this
     // course's required total the way an absence would.
 
-    const hoursAvailableToMiss = Math.max(0, round2(totalHours * 0.2 - leavesUsed));
-    const attendancePercentage = totalHours > 0 ? round2((attendedHours / totalHours) * 100) : 0;
+    const missBudget = totalHours * (1 - MIN_ATTENDANCE);
+    const hoursAvailableToMiss = Math.max(0, round2(missBudget - leavesUsed));
+    const attendancePercentage = currentPercentage(attendedHours, leavesUsed);
+    const heldHours = attendedHours + leavesUsed;
+    const canReachTarget = leavesUsed <= missBudget + 1e-9;
 
     const sessionsPerWeek = course.timetableEntries.length;
     const avgSessionHours = sessionsPerWeek > 0 ? weeklyHours / sessionsPerWeek : 0;
     const classesAvailableToMiss =
-      avgSessionHours > 0 ? Math.floor(hoursAvailableToMiss / avgSessionHours) : 0;
+      avgSessionHours > 0 ? Math.floor(hoursAvailableToMiss / avgSessionHours + 1e-9) : 0;
+    const classesToRecover = sessionsToRecover(attendedHours, heldHours, avgSessionHours);
 
     // No attendance recorded yet reads as 0% - that's "no data", not a
     // shortfall, so it must not trip the same "critical" as an actual
     // sub-80% track record once classes have happened.
-    const hasRecords = attendedHours + leavesUsed > 0;
+    const hasRecords = heldHours > 0;
     const riskLevel: AttendanceRiskLevel =
-      hasRecords && attendancePercentage < 80
+      !canReachTarget || (hasRecords && attendancePercentage < MIN_ATTENDANCE * 100)
         ? "critical"
         : classesAvailableToMiss <= 2
           ? "warning"
@@ -243,9 +283,12 @@ export async function calculateAttendanceStatsByCourse(
       totalHours: round2(totalHours),
       attendedHours: round2(attendedHours),
       leavesUsed: round2(leavesUsed),
+      heldHours: round2(heldHours),
       hoursAvailableToMiss,
       attendancePercentage,
       classesAvailableToMiss,
+      classesToRecover,
+      canReachTarget,
       riskLevel,
     };
   });

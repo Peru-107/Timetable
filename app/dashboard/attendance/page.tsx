@@ -59,6 +59,7 @@ interface AttendanceRecord {
 interface AttendanceStats {
   totalHours: number;
   attendedHours: number;
+  heldHours: number;
   attendancePercentage: number;
   requiredHours: number;
   leavesAvailable: number;
@@ -76,6 +77,9 @@ interface CourseAttendanceStat {
   hoursAvailableToMiss: number;
   attendancePercentage: number;
   classesAvailableToMiss: number;
+  classesToRecover: number;
+  canReachTarget: boolean;
+  heldHours: number;
   riskLevel: AttendanceRiskLevel;
 }
 
@@ -92,8 +96,13 @@ const RISK_FILL: Record<AttendanceRiskLevel, string> = {
 };
 
 function riskMessage(c: CourseAttendanceStat): string {
-  if (c.riskLevel === "critical") {
-    return "Already below 80% - attend every remaining class to recover";
+  if (!c.canReachTarget) {
+    return "Too many absences to finish the semester at 80%";
+  }
+  if (c.classesToRecover > 0) {
+    return `Below 80% - attend the next ${c.classesToRecover} ${
+      c.classesToRecover === 1 ? "class" : "classes"
+    } to recover`;
   }
   if (c.classesAvailableToMiss === 0) {
     return "Can't miss another class and stay at 80%";
@@ -348,13 +357,17 @@ function AttendanceContent() {
                   <h3 className="mb-2 text-sm font-medium text-muted-foreground">
                     Cumulative Attendance
                   </h3>
-                  <p
-                    className={`font-mono text-3xl font-bold ${
-                      stats.attendancePercentage >= 80 ? "text-success" : "text-destructive"
-                    }`}
-                  >
-                    <AnimatedNumber value={stats.attendancePercentage} suffix="%" />
-                  </p>
+                  {stats.heldHours > 0 ? (
+                    <p
+                      className={`font-mono text-3xl font-bold ${
+                        stats.attendancePercentage >= 80 ? "text-success" : "text-destructive"
+                      }`}
+                    >
+                      <AnimatedNumber value={stats.attendancePercentage} suffix="%" />
+                    </p>
+                  ) : (
+                    <p className="font-mono text-3xl font-bold text-muted-foreground">--</p>
+                  )}
                 </motion.div>
 
                 <motion.div variants={statCardVariants} className="frosted rounded-2xl p-6">
@@ -362,7 +375,10 @@ function AttendanceContent() {
                     Hours Attended
                   </h3>
                   <p className="font-mono text-3xl font-bold text-success">
-                    {stats.attendedHours}/{stats.totalHours}
+                    {stats.attendedHours}/{stats.heldHours}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    of classes held so far · {stats.totalHours}h in the semester
                   </p>
                 </motion.div>
 
@@ -381,12 +397,12 @@ function AttendanceContent() {
                   </h3>
                   <p
                     className={`flex items-center gap-2 text-xl font-bold ${
-                      stats.attendancePercentage >= 80
+                      stats.heldHours === 0 || stats.attendancePercentage >= 80
                         ? "text-success"
                         : "text-destructive"
                     }`}
                   >
-                    {stats.attendancePercentage >= 80 ? (
+                    {stats.heldHours === 0 || stats.attendancePercentage >= 80 ? (
                       <>
                         <CheckCircle2 className="h-5 w-5" /> Safe
                       </>
@@ -407,17 +423,18 @@ function AttendanceContent() {
                   Per-Subject Leave Balance
                 </h2>
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Each subject has its own semester-long hour total (weekly schedule × weeks
-                  in the semester) and its own 80% requirement.
+                  Percentages count classes held so far. Each subject has its own
+                  semester-long hour total (weekly schedule × weeks in the semester) and its
+                  own 80% requirement.
                 </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {statsByCourse.map((c) => (
                     <div key={c.courseId} className="frosted-inset rounded-xl p-4">
                       <p className="truncate font-medium text-foreground">{c.courseName}</p>
                       <p className="mt-1 font-mono text-sm text-foreground">
-                        {c.attendancePercentage}%{" "}
+                        {c.heldHours > 0 ? `${c.attendancePercentage}%` : "--"}{" "}
                         <span className="font-sans text-xs text-muted-foreground">
-                          ({c.attendedHours}h / {c.totalHours}h)
+                          ({c.attendedHours}h of {c.heldHours}h held)
                         </span>
                       </p>
                       <div className="mt-3 flex items-baseline gap-1.5">
