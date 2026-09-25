@@ -1,4 +1,5 @@
 import { scheduleRemainingClassesToday } from "@/lib/notificationScheduler";
+import { sendExamReminders } from "@/lib/examReminders";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -21,7 +22,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await scheduleRemainingClassesToday();
-    return NextResponse.json(result);
+    // Exam heads-ups ride on the same daily run; a failure there must not
+    // cost anyone their class reminders.
+    const exams = await sendExamReminders().catch((error) => {
+      console.error("Error sending exam reminders:", error);
+      return { sent: 0 };
+    });
+    return NextResponse.json({ ...result, examRemindersSent: exams.sent });
   } catch (error) {
     console.error("Error scheduling today's class-end notifications:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

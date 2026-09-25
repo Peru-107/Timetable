@@ -54,7 +54,11 @@ self.addEventListener("push", (event) => {
         body: (payload && payload.body) || "Open the app to see what's new.",
         icon: "/icon-192.png",
         badge: "/icon-192.png",
-        tag: payload && payload.type === "test" ? "reminder-test" : undefined,
+        tag:
+          payload && payload.type === "test"
+            ? "reminder-test"
+            : (payload && payload.tag) || undefined,
+        data: payload && payload.url ? { url: payload.url } : undefined,
       })
     );
     return;
@@ -85,8 +89,11 @@ self.addEventListener("notificationclick", (event) => {
     event.waitUntil(
       self.clients.matchAll({ type: "window" }).then((clients) => {
         const existing = clients.find((c) => "focus" in c);
-        if (existing) return existing.focus();
-        return self.clients.openWindow("/dashboard");
+        const url = (payload && payload.url) || "/dashboard";
+        if (existing) {
+          return existing.focus().then((c) => (payload && payload.url && c.navigate ? c.navigate(url) : c));
+        }
+        return self.clients.openWindow(url);
       })
     );
     return;

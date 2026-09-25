@@ -23,7 +23,16 @@ export interface TestPayload {
   body: string;
 }
 
-export type PushPayload = AttendancePromptPayload | TestPayload;
+/** A plain heads-up (e.g. an exam tomorrow); tapping opens `url`. */
+export interface ReminderPayload {
+  type: "reminder";
+  title: string;
+  body: string;
+  tag: string;
+  url: string;
+}
+
+export type PushPayload = AttendancePromptPayload | TestPayload | ReminderPayload;
 
 export interface PushSendResult {
   subscriptionId: string;

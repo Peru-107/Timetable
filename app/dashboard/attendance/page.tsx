@@ -4,12 +4,14 @@ import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion, type Variants } from "motion/react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectNative } from "@/components/ui/select-native";
 import { DashboardNav } from "@/components/DashboardNav";
 import { PageLoader } from "@/components/PageLoader";
 import { NoSemesterState } from "@/components/NoSemesterState";
+import { WhatIfPlanner } from "@/components/WhatIfPlanner";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes } from "@/lib/attendanceUtils";
@@ -27,6 +29,7 @@ import {
   Trash2,
   Check,
   Download,
+  FileText,
 } from "lucide-react";
 import { toCsv, downloadCsv } from "@/lib/csv";
 
@@ -68,6 +71,7 @@ interface CourseAttendanceStat {
   classesAvailableToMiss: number;
   classesToRecover: number;
   minAttendance: number;
+  sessionHours: number;
   canReachTarget: boolean;
   heldHours: number;
   riskLevel: AttendanceRiskLevel;
@@ -93,9 +97,9 @@ function riskMessage(c: CourseAttendanceStat): string {
     return `Can't miss another class and stay at ${c.minAttendance}%`;
   }
   if (c.classesAvailableToMiss === 1) {
-    return "1 class of slack left";
+    return "You can miss 1 more class";
   }
-  return `${c.classesAvailableToMiss} classes of slack left`;
+  return `You can miss ${c.classesAvailableToMiss} more classes`;
 }
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
@@ -303,6 +307,11 @@ function AttendanceContent() {
           <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">Attendance</h1>
           {semesterId && (
             <div className="flex flex-wrap items-center gap-2">
+              <Link href={`/dashboard/attendance/report?semesterId=${semesterId}`}>
+                <Button variant="outline" size="icon" aria-label="Attendance report (PDF)" title="Attendance report (PDF)">
+                  <FileText className="h-4 w-4" />
+                </Button>
+              </Link>
               {records.length > 0 && (
                 <Button variant="outline" onClick={handleExportCsv}>
                   <Download className="h-4 w-4" /> Export CSV
@@ -404,11 +413,13 @@ function AttendanceContent() {
               </motion.div>
             )}
 
+            {statsByCourse.length > 0 && <WhatIfPlanner courses={statsByCourse} />}
+
             {/* Per-Subject Leave Balance */}
             {statsByCourse.length > 0 && (
               <div className="frosted mb-8 rounded-2xl p-6">
                 <h2 className="text-xl font-semibold text-foreground">
-                  Per-Subject Leave Balance
+                  By Subject
                 </h2>
                 <p className="mb-4 text-sm text-muted-foreground">
                   Percentages count classes held so far. Each subject has its own
@@ -421,7 +432,7 @@ function AttendanceContent() {
                       <p className="truncate font-medium text-foreground">{c.courseName}</p>
                       {/* Two different yardsticks, shown side by side:
                           "so far" grows with every lecture held (the minimum % of what's
-                          been conducted), while the miss budget is fixed by the
+                          been conducted), while the hours you can miss are fixed by the
                           whole semester's total (20% of it). */}
                       <div className="mt-2 flex items-baseline gap-2">
                         <span className={`font-mono text-2xl font-bold ${RISK_STYLE[c.riskLevel]}`}>

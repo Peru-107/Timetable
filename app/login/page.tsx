@@ -31,7 +31,10 @@ export default function LoginPage() {
       if (result?.error) {
         setError(result.error);
       } else if (result?.ok) {
-        router.push("/dashboard");
+        // Return to where the user came from (e.g. a shared timetable link),
+        // but only to a path on this site - never an outside URL.
+        const next = new URLSearchParams(window.location.search).get("next");
+        router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
       }
     } catch (err) {
       setError("An error occurred. Please try again.");

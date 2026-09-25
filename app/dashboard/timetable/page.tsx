@@ -15,13 +15,14 @@ import { TodayClassChip, type TodayAttendanceStatus } from "@/components/TodayCl
 import { ScheduleClassChip } from "@/components/ScheduleClassChip";
 import { CoursePill } from "@/components/CoursePill";
 import { ResponsiveSheet } from "@/components/ResponsiveSheet";
+import { ShareTimetableSheet } from "@/components/ShareTimetableSheet";
 import { deleteMark, saveMark } from "@/lib/attendanceSync";
 import { showToast } from "@/lib/toast";
 import { CourseScheduleRows, type ScheduleRow } from "@/components/CourseScheduleRows";
 import { useActiveSemester } from "@/lib/hooks/useActiveSemester";
 import { computeHoursFromTimes, formatTime12h, localDateKey, startOfDay } from "@/lib/attendanceUtils";
 import { compressImageIfNeeded, MAX_UPLOAD_BYTES } from "@/lib/imageUpload";
-import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen, Palmtree, CalendarPlus } from "lucide-react";
+import { Plus, X, Upload, CheckCircle2, AlertCircle, Loader2, BookOpen, Palmtree, CalendarPlus, Share2 } from "lucide-react";
 
 interface TimetableEntry {
   id: string;
@@ -118,6 +119,7 @@ function TimetableContent() {
   const [editCourseError, setEditCourseError] = useState("");
   const [isMergingAdjacent, setIsMergingAdjacent] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [subjectsInput, setSubjectsInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -788,9 +790,18 @@ function TimetableContent() {
                   </>
                 ) : (
                   <>
-                    <Upload className="h-4 w-4" /> Upload Timetable
+                    <Upload className="h-4 w-4" /> Upload
                   </>
                 )}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowShare(true)}
+                aria-label="Share timetable"
+                title="Share timetable"
+              >
+                <Share2 className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -1241,6 +1252,10 @@ function TimetableContent() {
             </div>
 
             {/* Upload & Auto-Extract */}
+            {semesterId && (
+              <ShareTimetableSheet semesterId={semesterId} open={showShare} onClose={() => setShowShare(false)} />
+            )}
+
             <ResponsiveSheet
               open={showUpload}
               onClose={() => setShowUpload(false)}
@@ -1320,9 +1335,9 @@ function TimetableContent() {
             >
                 {entryIsExtra && !editingEntryId && (
                   <p className="mb-4 text-sm text-muted-foreground">
-                    A one-time lecture on a specific date - like a cancelled class rescheduled to
-                    Saturday. It counts toward that subject&apos;s total; your weekly timetable
-                    stays as it is.
+                    A one-time lecture on a specific date - like a cancelled class held on
+                    Saturday instead. Mark it like any class. Your weekly timetable and the
+                    semester&apos;s total hours stay the same.
                   </p>
                 )}
                 {entryError && (
